@@ -74,6 +74,27 @@ bool parse_symbols() {
     const mach_header_64* h = g_image.header;
     if (!h) return false;
 
+    // LC_SYMTAB 里的 symoff/stroff 是**文件偏移**，不是内存地址。
+    // 真机内存里各段是按 vmaddr 映射的（__LINKEDIT 的 vmaddr != fileoff），
+    // 所以必须按段表把文件偏移换算成运行时地址，否则会读到未映射的空洞。
+    auto file_off_to_ptr = [&](uint32_t f) -> const char* {
+        const uint8_t* q = reinterpret_cast<const uint8_t*>(h) + sizeof(mach_header_64);
+        for (uint32_t i = 0; i < h->ncmds; ++i) {
+            const load_command* lc = reinterpret_cast<const load_command*>(q);
+            if (lc->cmd == LC_SEGMENT_64) {
+                const segment_command_64* seg = reinterpret_cast<const segment_command_64*>(lc);
+                if (f >= seg->fileoff && f < seg->fileoff + seg->filesize) {
+                    uintptr_t addr = static_cast<uintptr_t>(seg->vmaddr)
+                                   + static_cast<uintptr_t>(g_image.slide)
+                                   + (f - seg->fileoff);
+                    return reinterpret_cast<const char*>(addr);
+                }
+            }
+            q += lc->cmdsize;
+        }
+        return nullptr;
+    };
+
     const symtab_command* symtab = nullptr;
     const uint8_t* p = reinterpret_cast<const uint8_t*>(h) + sizeof(mach_header_64);
     for (uint32_t i = 0; i < h->ncmds; ++i) {
@@ -84,11 +105,19 @@ bool parse_symbols() {
         }
         p += lc->cmdsize;
     }
-    if (!symtab || symtab->nsyms == 0) return false;
+    if (!symtab || symtab->nsyms == 0) {
+        mm::logf("符号解析失败：没有 LC_SYMTAB 或符号数为 0");
+        return false;
+    }
 
-    const char* base = reinterpret_cast<const char*>(h);
-    const nlist_64* syms = reinterpret_cast<const nlist_64*>(base + symtab->symoff);
-    const char* strtab = base + symtab->stroff;
+    const char* syms_raw = file_off_to_ptr(symtab->symoff);
+    const char* strtab = file_off_to_ptr(symtab->stroff);
+    if (!syms_raw || !strtab) {
+        mm::logf("符号解析失败：symoff=0x%x / stroff=0x%x 换算不出内存地址",
+                 symtab->symoff, symtab->stroff);
+        return false;
+    }
+    const nlist_64* syms = reinterpret_cast<const nlist_64*>(syms_raw);
 
     g_syms.reserve(symtab->nsyms * 2);
     for (uint32_t i = 0; i < symtab->nsyms; ++i) {
