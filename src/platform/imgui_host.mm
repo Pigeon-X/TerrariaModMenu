@@ -43,15 +43,6 @@ float g_font_px = 48.0f;      // 实际字号（像素），按屏幕缩放算�
 double g_last_present = 0;
 constexpr double kIdleInterval = 0.20;   // 空闲时最多 5 帧/秒
 
-// 叠加层只覆盖 UI 实际占用的矩形（避免全屏清理/绘制，这是性能关键）
-float g_rect_x = 0, g_rect_y = 0, g_rect_w = 0, g_rect_h = 0;
-
-void apply_layer_rect(float x, float y, float w, float h) {
-    g_rect_x = x; g_rect_y = y; g_rect_w = w; g_rect_h = h;
-    CGFloat s = g_scale > 0 ? g_scale : 1.0;
-    g_layer.frame = CGRectMake(x / s, y / s, w / s, h / s);
-    g_layer.drawableSize = CGSizeMake(w, h);
-}
 
 CAMetalLayer* g_layer = nil;
 id<MTLCommandQueue> g_queue = nil;
@@ -244,6 +235,16 @@ void init_imgui(id<MTLDevice> device) {
 // ---------------------------------------------------------------------------
 // 叠加层
 // ---------------------------------------------------------------------------
+// 叠加层只覆盖 UI 实际占用的矩形（避免全屏清理/绘制，这是性能关键）
+float g_rect_x = 0, g_rect_y = 0, g_rect_w = 0, g_rect_h = 0;
+
+void apply_layer_rect(float x, float y, float w, float h) {
+    g_rect_x = x; g_rect_y = y; g_rect_w = w; g_rect_h = h;
+    CGFloat s = g_scale > 0 ? g_scale : 1.0;
+    g_layer.frame = CGRectMake(x / s, y / s, w / s, h / s);
+    g_layer.drawableSize = CGSizeMake(w, h);
+}
+
 UIWindow* pick_window() {
     UIWindow* fallback = nil;
     for (UIWindow* w in [UIApplication sharedApplication].windows) {
@@ -338,11 +339,9 @@ void render_overlay() {
         if (!g_imgui_ready) return;
 
         ImGuiIO& io = ImGui::GetIO();
-        // 关键：告诉 ImGui "渲染目标的原点在哪、多大"，
-        // 这样界面仍然用屏幕绝对坐标，绘制却只落在这一小块 layer 上。
-        io.DisplayPos = ImVec2(g_rect_x, g_rect_y);
-        io.DisplaySize = ImVec2((float)g_layer.drawableSize.width,
-                                (float)g_layer.drawableSize.height);
+        // 布局仍按「整块屏幕」算，保证界面的绝对坐标是对的
+        io.DisplaySize = ImVec2((float)(g_window.bounds.size.width * g_scale),
+                                (float)(g_window.bounds.size.height * g_scale));
         double now = CACurrentMediaTime();
         float dt = (float)(now - g_last_time);
         g_last_time = now;
@@ -360,6 +359,14 @@ void render_overlay() {
         ImGui::NewFrame();
         mods::tick();
         ui::draw();
+        // 关键：把主视口原点/尺寸改成本帧 layer 的范围，
+        // ImGui::Render 会把它写进 draw_data->DisplayPos，
+        // 于是界面仍用屏幕绝对坐标绘制，落点却只在这一小块 layer 上。
+        {
+            ImGuiViewport* vp = ImGui::GetMainViewport();
+            vp->Pos = ImVec2(g_rect_x, g_rect_y);
+            vp->Size = ImVec2(g_rect_w, g_rect_h);
+        }
         ImGui::Render();
 
         id<MTLCommandBuffer> cb = [g_queue commandBuffer];
