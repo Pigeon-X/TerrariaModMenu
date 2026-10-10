@@ -185,11 +185,23 @@ void draw() {
             if (ImGui::MenuItem("收起成球")) set_visible(false);
             ImGui::EndMenu();
         }
-        // 右对齐的 ❌：收起回球状态
-        float btn_w = ImGui::CalcTextSize("✕ 收起").x + ImGui::GetStyle().FramePadding.x * 2;
-        ImGui::SameLine(ImGui::GetWindowWidth() - btn_w - 12.0f);
-        if (ImGui::Button("✕ 收起")) set_visible(false);
         ImGui::EndMenuBar();
+    }
+
+    // 内容区右上角放一个醒目的「收起」按钮（不依赖菜单栏，保证看得见）
+    {
+        const float bs = ImGui::GetFontSize() * 2.2f;
+        const float pad = ImGui::GetStyle().WindowPadding.x;
+        float x = ImGui::GetWindowWidth() - pad - bs * 1.9f;
+        if (x > ImGui::GetCursorPosX()) {
+            ImGui::SetCursorPosX(x);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.72f, 0.16f, 0.18f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.92f, 0.26f, 0.28f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.60f, 0.12f, 0.14f, 1.0f));
+            if (ImGui::Button("✕  收起成球", ImVec2(bs * 1.9f, bs))) set_visible(false);
+            ImGui::PopStyleColor(3);
+        }
+        ImGui::Separator();
     }
 
     if (ImGui::BeginTabBar("##tabs")) {

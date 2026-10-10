@@ -414,7 +414,7 @@ bool start() {
         return false;
     }
 
-    ui::set_visible(true);
+    ui::set_visible(false);      // 首次进入直接是悬浮球，玩家自己点开
     start_display_link();
     mm::logf("渲染层挂载完成，等第一帧 ...");
 
