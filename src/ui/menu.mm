@@ -4,6 +4,7 @@
 #include "menu.hpp"
 
 #include <deque>
+#include <cmath>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -11,9 +12,14 @@
 
 #include "imgui.h"
 
+#ifdef MODMENU_PREVIEW
+// 桌面预览模式：数据和日志都换成假的，不依赖 iOS 的 Foundation / IL2CPP
+#include "preview_stubs.hpp"
+#else
 #include "../il2cpp_api.hpp"
 #include "../mm_log.hpp"
 #include "../mods/mod_loader.hpp"
+#endif
 
 namespace ui {
 namespace {
