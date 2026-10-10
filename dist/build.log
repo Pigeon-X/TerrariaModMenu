@@ -4,7 +4,7 @@ Cloning into 'third_party/imgui'...
 ==> 拉取 Lua 5.4.7
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0 26  365k   26 98007    0     0   195k      0  0:00:01 --:--:--  0:00:01  194k100  365k  100  365k    0     0   536k      0 --:--:-- --:--:-- --:--:--  535k
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0 13  365k   13 48855    0     0  46514      0  0:00:08  0:00:01  0:00:07 46528100  365k  100  365k    0     0   279k      0  0:00:01  0:00:01 --:--:--  280k
 ==> 完成
 
 ===== [2/2] make generic =====
@@ -29,12 +29,31 @@ third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence 
       |                                                            (void*)
 2 warnings generated.
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -c src/il2cpp_api.mm -o build/src/il2cpp_api.mm.o
-src/il2cpp_api.mm:96:15: error: no member named 'n_strx' in 'nlist_64'
-   96 |         if (s.n_strx == 0 || s.n_value == 0) continue;
-      |             ~ ^
-src/il2cpp_api.mm:100:38: error: no member named 'n_strx' in 'nlist_64'
-  100 |         const char* raw = strtab + s.n_strx;
-      |                                    ~ ^
-2 errors generated.
-make[1]: *** [build/src/il2cpp_api.mm.o] Error 1
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -c src/platform/imgui_host.mm -o build/src/platform/imgui_host.mm.o
+In file included from src/platform/imgui_host.mm:17:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+src/platform/imgui_host.mm:55:5: error: no matching function for call to 'objc_getClassList'
+   55 |     objc_getClassList(classes.data(), count);
+      |     ^~~~~~~~~~~~~~~~~
+/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/usr/include/objc/runtime.h:330:1: note: candidate function not viable: 1st argument ('value_type *' (aka '__strong Class *')) has __strong ownership, but parameter has __unsafe_unretained ownership
+  330 | objc_getClassList(Class _Nonnull * _Nullable buffer, int bufferCount)
+      | ^                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/platform/imgui_host.mm:155:19: error: incompatible types casting 'id' to 'id<MTLCommandBuffer>' with a __bridge cast
+  155 |         render_ui((__bridge id<MTLCommandBuffer>)self, drawable);
+      |                   ^         ~~~~~~~~~~~~~~~~~~~~ ~~~~
+2 warnings and 2 errors generated.
+make[1]: *** [build/src/platform/imgui_host.mm.o] Error 1
 make: *** [generic] Error 2
