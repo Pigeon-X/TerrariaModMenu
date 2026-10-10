@@ -145,10 +145,14 @@ void draw() {
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
 
         if (g_ball_tex) {
-            ImGui::ImageButton("##ball", (ImTextureID)g_ball_tex,
-                               ImVec2(kBallSize, kBallSize),
-                               ImVec2(0, 0), ImVec2(1, 1),
-                               ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1));
+            // 不要用 ImageButton：ImGui 会先画一个按钮底色框，看起来就是方块。
+            // 这里只画图片本身（带 alpha），点击区用 InvisibleButton 拿。
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            ImGui::InvisibleButton("##ball", ImVec2(kBallSize, kBallSize));
+            ImGui::GetWindowDrawList()->AddImage(
+                (ImTextureID)g_ball_tex, p,
+                ImVec2(p.x + kBallSize, p.y + kBallSize),
+                ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 255));
         } else {
             ImGui::Button("M", ImVec2(kBallSize, kBallSize));
         }
@@ -184,17 +188,26 @@ void draw() {
     ImGui::SetNextWindowPos(ImVec2(60, 140), ImGuiCond_FirstUseEver);
     // 可缩放：给个下限，避免拖没了
     ImGui::SetNextWindowSizeConstraints(ImVec2(560, 380), ImVec2(FLT_MAX, FLT_MAX));
-    if (!ImGui::Begin("Terraria ModMenu", nullptr, ImGuiWindowFlags_NoCollapse)) {
+    if (!ImGui::Begin("Terraria ModMenu", nullptr,
+                      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar)) {
         ImGui::End();
         return;
     }
 
-    // 只占一行高度的小「×」，右对齐贴在右上角，其余空间全留给功能区
+    // 自绘标题行：左边标题（按住可拖动窗口），右边贴角的小「×」
     {
         const float bs = ImGui::GetFrameHeight();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Terraria ModMenu");
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            ImVec2 d = ImGui::GetIO().MouseDelta;
+            ImVec2 p = ImGui::GetWindowPos();
+            ImGui::SetWindowPos(ImVec2(p.x + d.x, p.y + d.y));
+        }
+
         const float x = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - bs;
         if (x > ImGui::GetCursorPosX()) {
-            ImGui::SetCursorPosX(x);
+            ImGui::SameLine(x);
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.62f, 0.16f, 0.18f, 0.90f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.92f, 0.26f, 0.28f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.60f, 0.12f, 0.14f, 1.0f));
@@ -202,6 +215,7 @@ void draw() {
             ImGui::PopStyleColor(3);
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("收起成悬浮球");
         }
+        ImGui::Separator();
     }
 
     if (ImGui::BeginTabBar("##tabs")) {
