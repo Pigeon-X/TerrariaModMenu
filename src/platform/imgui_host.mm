@@ -51,6 +51,18 @@ std::atomic<float> g_touch_y{0};
 // 字体
 // ---------------------------------------------------------------------------
 void setup_fonts(ImGuiIO& io) {
+    // 注意：不要用 GetGlyphRangesChineseFull()！
+    // 那是全量中文（约 2 万字），会生成 4096² 的大图集，
+    // 而这个初始化如果发生在 CADisplayLink 回调里，会因为超时被 watchdog 杀掉。
+    // 用「常用简体中文」（约 2500 字）足够菜单用，图集小得多。
+    static ImVector<ImWchar> ranges;
+    if (ranges.empty()) {
+        ImFontGlyphRangesBuilder builder;
+        builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+        builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
+        builder.BuildRanges(&ranges);
+    }
+
     const char* candidates[] = {
         "/System/Library/Fonts/PingFang.ttc",
         "/System/Library/Fonts/STHeiti Light.ttc",
@@ -62,8 +74,8 @@ void setup_fonts(ImGuiIO& io) {
     cfg.OversampleV = 1;
     for (const char* path : candidates) {
         if (![[NSFileManager defaultManager] fileExistsAtPath:@(path)]) continue;
-        if (io.Fonts->AddFontFromFileTTF(path, 17.0f, &cfg,
-                                        io.Fonts->GetGlyphRangesChineseFull()) != nullptr) {
+        mm::logf("ImGui 字体：尝试加载 %s ...", path);
+        if (io.Fonts->AddFontFromFileTTF(path, 17.0f, &cfg, ranges.Data) != nullptr) {
             mm::logf("ImGui 字体：%s", path);
             return;
         }
@@ -74,6 +86,7 @@ void setup_fonts(ImGuiIO& io) {
 
 void init_imgui(id<MTLDevice> device) {
     if (g_imgui_ready) return;
+    mm::logf("ImGui 初始化：CreateContext ...");
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -84,6 +97,11 @@ void init_imgui(id<MTLDevice> device) {
     ImGui::StyleColorsDark();
     ImGui::GetStyle().ScaleAllSizes(1.8f);   // 手机上控件太小
     setup_fonts(io);
+
+    // 显式建图集，并把耗时打出来（放这里比放在渲染回调里安全）
+    double t0 = CACurrentMediaTime();
+    io.Fonts->Build();
+    mm::logf("ImGui 图集已生成，耗时 %.0f ms", (CACurrentMediaTime() - t0) * 1000.0);
 
     if (!ImGui_ImplMetal_Init(device)) {
         mm::logf("ImGui_ImplMetal_Init 失败");
@@ -248,6 +266,20 @@ bool ready() { return g_imgui_ready; }
 bool start() {
     if (g_started.exchange(true)) return true;
 
+    // 安全开关：Documents/ModMenu_norender 存在时，只加载 dylib、不挂任何渲染，
+    // 用来排查"是不是渲染层把游戏搞崩了"。
+    @autoreleasepool {
+        NSString* docs = [NSSearchPathForDirectoriesInDomains(
+            NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        NSString* flag = [docs stringByAppendingPathComponent:@"ModMenu_norender"];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:flag]) {
+            mm::logf("检测到 ModMenu_norender，跳过渲染层（安全模式）");
+            g_started.store(false);
+            return false;
+        }
+    }
+
+    mm::logf("开始挂载渲染层 ...");
     if (!setup_overlay()) {
         g_started.store(false);
         return false;
@@ -256,8 +288,17 @@ bool start() {
     swizzle([UIWindow class], @selector(sendEvent:), (IMP)mm_send_event, &g_orig_send_event);
     mm::logf("  钩 UIWindow sendEvent:  %s", g_orig_send_event ? "OK" : "该方法不存在");
 
+    // 趁现在（不在渲染回调里）把 ImGui 和图集建好
+    init_imgui(g_layer.device);
+    if (!g_imgui_ready) {
+        mm::logf("ImGui 初始化失败，不启动渲染");
+        g_started.store(false);
+        return false;
+    }
+
     ui::set_visible(true);
     start_display_link();
+    mm::logf("渲染层挂载完成，等第一帧 ...");
 
     // 8 秒后给个明确结论
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)),
