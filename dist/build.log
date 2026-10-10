@@ -1,0 +1,152 @@
+===== [1/2] fetch_deps =====
+==> 拉取 Dear ImGui v1.90.9
+Cloning into 'third_party/imgui'...
+==> 拉取 Lua 5.4.7
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  365k  100  365k    0     0   311k      0  0:00:01  0:00:01 --:--:--  311k
+==> 完成
+
+===== [2/2] make generic =====
+[ModMenu] 构建：通用版（纯按名解析）
+[ModMenu] 构建：通用版（纯按名解析）
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -c src/entry.mm -o build/src/entry.mm.o
+In file included from src/entry.mm:9:
+src/il2cpp_api.hpp:89:1: error: redefinition of 'f' with a different type: 'F' (aka 'const char *(*)(void *)') vs 'Field *' (aka 'void *')
+   89 | IL2_WRAP(const char*, field_get_name, "il2cpp_field_get_name", (Field* f), (f))
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:89:72: note: previous definition is here
+   89 | IL2_WRAP(const char*, field_get_name, "il2cpp_field_get_name", (Field* f), (f))
+      |                                                                        ^
+src/il2cpp_api.hpp:89:76: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   89 | IL2_WRAP(const char*, field_get_name, "il2cpp_field_get_name", (Field* f), (f))
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:90:1: error: redefinition of 'f' with a different type: 'F' (aka 'void *(*)(void *)') vs 'Field *' (aka 'void *')
+   90 | IL2_WRAP(Type*, field_get_type, "il2cpp_field_get_type", (Field* f), (f))
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:90:66: note: previous definition is here
+   90 | IL2_WRAP(Type*, field_get_type, "il2cpp_field_get_type", (Field* f), (f))
+      |                                                                  ^
+src/il2cpp_api.hpp:90:70: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   90 | IL2_WRAP(Type*, field_get_type, "il2cpp_field_get_type", (Field* f), (f))
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:91:1: error: redefinition of 'f' with a different type: 'F' (aka 'unsigned int (*)(void *)') vs 'Field *' (aka 'void *')
+   91 | IL2_WRAP(uint32_t, field_get_offset, "il2cpp_field_get_offset", (Field* f), (f))
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:91:73: note: previous definition is here
+   91 | IL2_WRAP(uint32_t, field_get_offset, "il2cpp_field_get_offset", (Field* f), (f))
+      |                                                                         ^
+src/il2cpp_api.hpp:91:77: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   91 | IL2_WRAP(uint32_t, field_get_offset, "il2cpp_field_get_offset", (Field* f), (f))
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:92:1: error: redefinition of 'f' with a different type: 'F' (aka 'bool (*)(void *)') vs 'Field *' (aka 'void *')
+   92 | IL2_WRAP(bool, field_is_static, "il2cpp_field_is_literal", (Field* f), (f))
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:92:68: note: previous definition is here
+   92 | IL2_WRAP(bool, field_is_static, "il2cpp_field_is_literal", (Field* f), (f))
+      |                                                                    ^
+src/il2cpp_api.hpp:92:72: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   92 | IL2_WRAP(bool, field_is_static, "il2cpp_field_is_literal", (Field* f), (f))
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:93:1: error: redefinition of 'f' with a different type: 'F' (aka 'void (*)(void *, void *, void *)') vs 'Field *' (aka 'void *')
+   93 | IL2_WRAP(void, field_get_value, "il2cpp_field_get_value",
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:94:29: note: previous definition is here
+   94 |          (Object* o, Field* f, void* out), (o, f, out))
+      |                             ^
+src/il2cpp_api.hpp:94:44: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   93 | IL2_WRAP(void, field_get_value, "il2cpp_field_get_value",
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   94 |          (Object* o, Field* f, void* out), (o, f, out))
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:95:1: error: redefinition of 'f' with a different type: 'F' (aka 'void (*)(void *, void *, void *)') vs 'Field *' (aka 'void *')
+   95 | IL2_WRAP(void, field_set_value, "il2cpp_field_set_value",
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:96:29: note: previous definition is here
+   96 |          (Object* o, Field* f, void* in), (o, f, in))
+      |                             ^
+src/il2cpp_api.hpp:96:43: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   95 | IL2_WRAP(void, field_set_value, "il2cpp_field_set_value",
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   96 |          (Object* o, Field* f, void* in), (o, f, in))
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:97:1: error: redefinition of 'f' with a different type: 'F' (aka 'void (*)(void *, void *)') vs 'Field *' (aka 'void *')
+   97 | IL2_WRAP(void, field_static_get_value, "il2cpp_field_static_get_value",
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:98:18: note: previous definition is here
+   98 |          (Field* f, void* out), (f, out))
+      |                  ^
+src/il2cpp_api.hpp:98:33: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   97 | IL2_WRAP(void, field_static_get_value, "il2cpp_field_static_get_value",
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   98 |          (Field* f, void* out), (f, out))
+      |          ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:99:1: error: redefinition of 'f' with a different type: 'F' (aka 'void (*)(void *, void *)') vs 'Field *' (aka 'void *')
+   99 | IL2_WRAP(void, field_static_set_value, "il2cpp_field_static_set_value",
+      | ^
+src/il2cpp_api.hpp:47:18: note: expanded from macro 'IL2_WRAP'
+   47 |         static F f = reinterpret_cast<F>(api(symbol));                 \
+      |                  ^
+src/il2cpp_api.hpp:100:18: note: previous definition is here
+  100 |          (Field* f, void* in), (f, in))
+      |                  ^
+src/il2cpp_api.hpp:100:32: error: called object type 'Field *' (aka 'void *') is not a function or function pointer
+   99 | IL2_WRAP(void, field_static_set_value, "il2cpp_field_static_set_value",
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  100 |          (Field* f, void* in), (f, in))
+      |          ~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~
+src/il2cpp_api.hpp:48:22: note: expanded from macro 'IL2_WRAP'
+   48 |         return f ? f args : (ret)0;                                    \
+      |                    ~ ^
+src/il2cpp_api.hpp:134:1: error: no type named 'string' in namespace 'std'; did you mean 'String'?
+  134 | std::string to_utf8(String* s);
+      | ^~~~~~~~~~~
+      | String
+src/il2cpp_api.hpp:21:7: note: 'String' declared here
+   21 | using String   = void;
+      |       ^
+17 errors generated.
+make[1]: *** [build/src/entry.mm.o] Error 1
+make: *** [generic] Error 2
