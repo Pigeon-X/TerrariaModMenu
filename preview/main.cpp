@@ -118,12 +118,12 @@ LRESULT WINAPI wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
 int main(int, char**) {
     WNDCLASSEX wc = {sizeof(wc), CS_CLASSDC, wnd_proc, 0, 0, GetModuleHandle(nullptr),
-                     nullptr, nullptr, nullptr, nullptr, L"ModMenuPreview", nullptr};
+                     nullptr, nullptr, nullptr, nullptr, "ModMenuPreview", nullptr};
     RegisterClassEx(&wc);
-    HWND hwnd = CreateWindow(wc.lpszClassName, L"Terraria ModMenu — 桌面预览器",
+    HWND hwnd = CreateWindow(wc.lpszClassName, "Terraria ModMenu Preview (desktop)",
                              WS_OVERLAPPEDWINDOW, 80, 60, 1280, 760,
                              nullptr, nullptr, wc.hInstance, nullptr);
-    if (!init_d3d(hwnd)) { MessageBox(nullptr, L"D3D11 初始化失败", L"错误", MB_OK); return 1; }
+    if (!init_d3d(hwnd)) { MessageBox(nullptr, "D3D11 init failed", "Error", MB_OK); return 1; }
     ShowWindow(hwnd, SW_SHOWDEFAULT);
     UpdateWindow(hwnd);
 
