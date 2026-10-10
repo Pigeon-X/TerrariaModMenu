@@ -4,7 +4,7 @@ Cloning into 'third_party/imgui'...
 ==> 拉取 Lua 5.4.7
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  365k  100  365k    0     0   398k      0 --:--:-- --:--:-- --:--:--  398k
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  8  365k    8 32471    0     0  49685      0  0:00:07 --:--:--  0:00:07 49649100  365k  100  365k    0     0   403k      0 --:--:-- --:--:-- --:--:--  402k
 ==> 完成
 
 ===== [2/2] make generic =====
@@ -12,7 +12,7 @@ Cloning into 'third_party/imgui'...
 [ModMenu] 构建：通用版（纯按名解析）
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/entry.mm -o build/src/entry.mm.o
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/ui/menu.mm -o build/src/ui/menu.mm.o
-In file included from src/ui/menu.mm:14:
+In file included from src/ui/menu.mm:13:
 third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
  2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
       |                                           ^
@@ -27,10 +27,7 @@ third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence 
  2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
       |                                                            ^
       |                                                            (void*)
-src/ui/menu.mm:37:6: warning: unused variable 'g_filter' [-Wunused-variable]
-   37 | char g_filter[128] = "";
-      |      ^~~~~~~~
-3 warnings generated.
+2 warnings generated.
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/ui/cheat.mm -o build/src/ui/cheat.mm.o
 In file included from src/ui/cheat.mm:7:
 third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
