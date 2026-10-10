@@ -180,4 +180,8 @@ std::string to_utf8(String* s);
 // 校验不通过时返回 nullptr（交给专用版的偏移表处理）。
 void* method_pointer(Method* m);
 
+// 把托管方法的原生代码指针改写到新函数（Hook 用）。
+// 成功返回 true。实现上就是找到 method_pointer 读的那个字段再写回去。
+bool set_method_pointer(Method* m, void* fn);
+
 }  // namespace il2

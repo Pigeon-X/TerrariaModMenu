@@ -20,6 +20,7 @@ extern "C" {
 #include "../mm_log.hpp"
 #include "../ui/menu.hpp"
 #include "imgui.h"          // UI.* 直接画 ImGui 控件
+#include "lua_hook.hpp"
 
 namespace luaapi {
 namespace {
@@ -286,6 +287,306 @@ int ui_tooltip(lua_State* L) {
 int ui_bullet(lua_State* L) {
     ImGui::BulletText("%s", luaL_checkstring(L, 1));
     return 0;
+}
+
+// ---- 补一批 mod 常用的控件 ------------------------------------------------
+int ui_text_wrapped(lua_State* L) {
+    ImGui::TextWrapped("%s", luaL_checkstring(L, 1));
+    return 0;
+}
+int ui_text_disabled(lua_State* L) {
+    ImGui::TextDisabled("%s", luaL_checkstring(L, 1));
+    return 0;
+}
+int ui_label_text(lua_State* L) {
+    ImGui::LabelText(luaL_checkstring(L, 1), "%s", luaL_checkstring(L, 2));
+    return 0;
+}
+int ui_separator_text(lua_State* L) {
+    ImGui::SeparatorText(luaL_checkstring(L, 1));
+    return 0;
+}
+int ui_newline(lua_State*) { ImGui::NewLine(); return 0; }
+int ui_indent(lua_State* L) { ImGui::Indent((float)luaL_optnumber(L, 1, 0)); return 0; }
+int ui_unindent(lua_State* L) { ImGui::Unindent((float)luaL_optnumber(L, 1, 0)); return 0; }
+int ui_dummy(lua_State* L) { ImGui::Dummy(ImVec2((float)luaL_checknumber(L,1), (float)luaL_checknumber(L,2))); return 0; }
+int ui_set_next_item_width(lua_State* L) { ImGui::SetNextItemWidth((float)luaL_checknumber(L, 1)); return 0; }
+int ui_push_id(lua_State* L) { ImGui::PushID(luaL_checkstring(L, 1)); return 0; }
+int ui_pop_id(lua_State*) { ImGui::PopID(); return 0; }
+int ui_begin_group(lua_State*) { ImGui::BeginGroup(); return 0; }
+int ui_end_group(lua_State*) { ImGui::EndGroup(); return 0; }
+int ui_small_button(lua_State* L) { lua_pushboolean(L, ImGui::SmallButton(luaL_checkstring(L, 1))); return 1; }
+int ui_progress_bar(lua_State* L) {
+    ImGui::ProgressBar((float)luaL_checknumber(L, 1));
+    return 0;
+}
+int ui_is_item_hovered(lua_State* L) { lua_pushboolean(L, ImGui::IsItemHovered()); return 1; }
+int ui_is_item_clicked(lua_State* L) { lua_pushboolean(L, ImGui::IsItemClicked((int)luaL_optinteger(L, 1, 0))); return 1; }
+
+int ui_input_text(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    const char* cur = luaL_optstring(L, 2, "");
+    char buf[512];
+    snprintf(buf, sizeof(buf), "%s", cur);
+    if (ImGui::InputText(label, buf, sizeof(buf))) { lua_pushstring(L, buf); return 1; }
+    lua_pushstring(L, buf);
+    return 1;
+}
+int ui_input_text_hint(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    const char* hint = luaL_checkstring(L, 2);
+    const char* cur = luaL_optstring(L, 3, "");
+    char buf[512];
+    snprintf(buf, sizeof(buf), "%s", cur);
+    if (ImGui::InputTextWithHint(label, hint, buf, sizeof(buf))) { lua_pushstring(L, buf); return 1; }
+    lua_pushstring(L, buf);
+    return 1;
+}
+int ui_input_int(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    int v = (int)luaL_optinteger(L, 2, 0);
+    int step = (int)luaL_optinteger(L, 3, 1);
+    ImGui::InputInt(label, &v, step);
+    lua_pushinteger(L, v);
+    return 1;
+}
+int ui_drag_int(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    int v = (int)luaL_checkinteger(L, 2);
+    float speed = (float)luaL_optnumber(L, 3, 1.0);
+    ImGui::DragInt(label, &v, speed);
+    lua_pushinteger(L, v);
+    return 1;
+}
+int ui_drag_float(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    float v = (float)luaL_checknumber(L, 2);
+    float speed = (float)luaL_optnumber(L, 3, 1.0f);
+    ImGui::DragFloat(label, &v, speed);
+    lua_pushnumber(L, v);
+    return 1;
+}
+int ui_checkbox_flags(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    int v = (int)luaL_checkinteger(L, 2);
+    int flags = (int)luaL_checkinteger(L, 3);
+    bool changed = ImGui::CheckboxFlags(label, &v, flags);
+    lua_pushinteger(L, v);
+    lua_pushboolean(L, changed);
+    return 2;
+}
+int ui_color_edit3(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    float c[3] = {(float)luaL_checknumber(L,2), (float)luaL_checknumber(L,3), (float)luaL_checknumber(L,4)};
+    bool changed = ImGui::ColorEdit3(label, c);
+    lua_pushnumber(L, c[0]); lua_pushnumber(L, c[1]); lua_pushnumber(L, c[2]);
+    lua_pushboolean(L, changed);
+    return 4;
+}
+int ui_color_swatch(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    ImVec4 col((float)luaL_optnumber(L,2,1), (float)luaL_optnumber(L,3,1),
+               (float)luaL_optnumber(L,4,1), (float)luaL_optnumber(L,5,1));
+    ImGui::ColorButton(label, col);
+    lua_pushnumber(L, col.x); lua_pushnumber(L, col.y);
+    lua_pushnumber(L, col.z); lua_pushnumber(L, col.w);
+    lua_pushboolean(L, false);
+    return 5;
+}
+int ui_combo(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    int cur = (int)luaL_optinteger(L, 2, 0);
+    luaL_checktype(L, 3, LUA_TTABLE);
+    int n = (int)lua_rawlen(L, 3);
+    std::vector<std::string> items;
+    items.reserve(n);
+    for (int i = 1; i <= n; ++i) {
+        lua_rawgeti(L, 3, i);
+        items.emplace_back(lua_tostring(L, -1) ? lua_tostring(L, -1) : "");
+        lua_pop(L, 1);
+    }
+    const char* preview = (cur >= 0 && cur < n) ? items[cur].c_str() : "";
+    if (ImGui::BeginCombo(label, preview)) {
+        for (int i = 0; i < n; ++i) {
+            bool sel = (i == cur);
+            if (ImGui::Selectable(items[i].c_str(), sel)) cur = i;
+            if (sel) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    lua_pushinteger(L, cur);
+    return 1;
+}
+int ui_radio_button(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    if (lua_type(L, 3) == LUA_TNUMBER) {
+        int v = (int)luaL_checkinteger(L, 2);
+        int want = (int)luaL_checkinteger(L, 3);
+        if (ImGui::RadioButton(label, v == want)) lua_pushinteger(L, want);
+        else lua_pushinteger(L, v);
+    } else {
+        bool active = lua_toboolean(L, 2);
+        if (ImGui::RadioButton(label, active)) lua_pushinteger(L, 1);
+        else lua_pushinteger(L, 0);
+    }
+    return 1;
+}
+int ui_selectable(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    bool sel = lua_toboolean(L, 2);
+    int flags = (int)luaL_optinteger(L, 3, 0);
+    bool pressed = ImGui::Selectable(label, &sel, (ImGuiSelectableFlags)flags);
+    lua_pushboolean(L, sel);
+    lua_pushboolean(L, pressed);
+    return 2;
+}
+int ui_tree_node(lua_State* L) {
+    lua_pushboolean(L, ImGui::TreeNode(luaL_checkstring(L, 1)));
+    return 1;
+}
+int ui_tree_pop(lua_State*) { ImGui::TreePop(); return 0; }
+int ui_collapsing_header(lua_State* L) {
+    lua_pushboolean(L, ImGui::CollapsingHeader(luaL_checkstring(L, 1)));
+    return 1;
+}
+int ui_begin_child(lua_State* L) {
+    const char* id = luaL_checkstring(L, 1);
+    float w = (float)luaL_optnumber(L, 2, 0);
+    float h = (float)luaL_optnumber(L, 3, 0);
+    lua_pushboolean(L, ImGui::BeginChild(id, ImVec2(w, h)));
+    return 1;
+}
+int ui_end_child(lua_State*) { ImGui::EndChild(); return 0; }
+
+// ---- 表格 / 选项卡 / 弹窗 -------------------------------------------------
+int ui_begin_table(lua_State* L) {
+    const char* id = luaL_checkstring(L, 1);
+    int cols = (int)luaL_checkinteger(L, 2);
+    int flags = (int)luaL_optinteger(L, 3, 0);
+    lua_pushboolean(L, ImGui::BeginTable(id, cols, (ImGuiTableFlags)flags));
+    return 1;
+}
+int ui_table_setup_column(lua_State* L) {
+    ImGui::TableSetupColumn(luaL_checkstring(L, 1));
+    return 0;
+}
+int ui_table_headers_row(lua_State*) { ImGui::TableHeadersRow(); return 0; }
+int ui_table_next_row(lua_State*) { ImGui::TableNextRow(); return 0; }
+int ui_table_next_column(lua_State*) { lua_pushboolean(L, ImGui::TableNextColumn()); return 1; }
+int ui_end_table(lua_State*) { ImGui::EndTable(); return 0; }
+
+int ui_begin_tab_bar(lua_State* L) {
+    lua_pushboolean(L, ImGui::BeginTabBar(luaL_checkstring(L, 1)));
+    return 1;
+}
+int ui_begin_tab_item(lua_State* L) {
+    bool open = ImGui::BeginTabItem(luaL_checkstring(L, 1));
+    lua_pushboolean(L, open);
+    lua_pushboolean(L, true);
+    return 2;
+}
+int ui_end_tab_item(lua_State*) { ImGui::EndTabItem(); return 0; }
+int ui_end_tab_bar(lua_State*) { ImGui::EndTabBar(); return 0; }
+
+int ui_open_popup(lua_State* L) { ImGui::OpenPopup(luaL_checkstring(L, 1)); return 0; }
+int ui_begin_popup(lua_State* L) { lua_pushboolean(L, ImGui::BeginPopup(luaL_checkstring(L, 1))); return 1; }
+int ui_begin_popup_modal(lua_State* L) {
+    bool open = lua_toboolean(L, 2);
+    bool ok = ImGui::BeginPopupModal(luaL_checkstring(L, 1), &open);
+    lua_pushboolean(L, ok);
+    lua_pushboolean(L, open);
+    return 2;
+}
+int ui_end_popup(lua_State*) { ImGui::EndPopup(); return 0; }
+int ui_close_current_popup(lua_State*) { ImGui::CloseCurrentPopup(); return 0; }
+
+int ui_toast(lua_State* L) {
+    // 简化实现：直接写进控制台日志（真正的 Toast 需要 overlay 队列）
+    ui::log_line(std::string("[提示] ") + luaL_checkstring(L, 1));
+    return 0;
+}
+
+// 左侧标签 + 右侧彩色值的「信息行」
+int ui_info_row(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    const char* value = luaL_optstring(L, 2, "");
+    float r = (float)luaL_optnumber(L, 3, 1.0);
+    float g = (float)luaL_optnumber(L, 4, 1.0);
+    float b = (float)luaL_optnumber(L, 5, 1.0);
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(150);
+    ImGui::TextColored(ImVec4(r, g, b, 1.0f), "%s", value);
+    return 0;
+}
+
+// 胶囊样式的开关
+int ui_chip(lua_State* L) {
+    const char* label = luaL_checkstring(L, 1);
+    bool active = lua_toboolean(L, 2);
+    ImGui::PushStyleColor(ImGuiCol_Button,
+        active ? ImVec4(0.26f, 0.59f, 0.98f, 1.0f) : ImVec4(0.20f, 0.20f, 0.24f, 1.0f));
+    bool pressed = ImGui::Button(label, ImVec2(0, 28));
+    ImGui::PopStyleColor();
+    lua_pushboolean(L, pressed ? !active : active);
+    return 1;
+}
+
+int native_hook(lua_State* L) {
+    ModState* ms = state_of(L);
+    auto* lm = static_cast<LuaMethod*>(luaL_checkudata(L, 1, MT_METHOD));
+    if (!lm || !lm->m) { mod_log(ms, "Hook：第一个参数不是有效方法"); lua_pushnil(L); return 1; }
+
+    const char* why = nullptr;
+    if (!luahook::signature_supported(lm->m, &why)) {
+        mod_log(ms, std::string("Hook 被拒绝：") + (why ? why : "签名不支持"));
+        lua_pushnil(L);
+        return 1;
+    }
+
+    luahook::Spec spec;
+    spec.is_static = il2::method_is_static(lm->m);
+    spec.original = il2::method_pointer(lm->m);
+    if (!spec.original) { mod_log(ms, "Hook 被拒绝：拿不到原函数地址"); lua_pushnil(L); return 1; }
+
+    if (lua_isfunction(L, 2)) {
+        spec.mode = 0;
+        lua_pushvalue(L, 2);
+        spec.ref_fn = luaL_ref(L, LUA_REGISTRYINDEX);
+    } else if (lua_istable(L, 2)) {
+        lua_getfield(L, 2, "mode");
+        const char* mode = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
+        spec.mode = (mode && strcmp(mode, "prepost") == 0) ? 1 : 0;
+        lua_pop(L, 1);
+        auto grab = [&](const char* key) -> int {
+            lua_getfield(L, 2, key);
+            int r = 0;
+            if (lua_isfunction(L, -1)) r = luaL_ref(L, LUA_REGISTRYINDEX);
+            else lua_pop(L, 1);
+            return r;
+        };
+        spec.ref_fn = grab("fn");
+        spec.ref_prefix = grab("prefix");
+        spec.ref_postfix = grab("postfix");
+    } else {
+        mod_log(ms, "Hook：第二个参数既不是函数也不是表");
+        lua_pushnil(L);
+        return 1;
+    }
+
+    int handle = luahook::install(lm->m, L, spec);
+    if (handle < 0) { lua_pushnil(L); return 1; }
+
+    lua_newtable(L);
+    lua_pushinteger(L, handle);
+    lua_setfield(L, -2, "slot");
+    lua_pushinteger(L, handle);
+    lua_pushcclosure(L, [](lua_State* L2) -> int {
+        int h = (int)lua_tointeger(L2, lua_upvalueindex(1));
+        luahook::remove_handle(h, L2);
+        return 0;
+    }, 1);
+    lua_setfield(L, -2, "remove");
+    return 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -725,6 +1026,77 @@ void register_api(lua_State* L) {
     lua_pushcfunction(L, ui_slider_float);lua_setfield(L, -2, "SliderFloat");
     lua_pushcfunction(L, ui_tooltip);     lua_setfield(L, -2, "SetTooltip");
     lua_pushcfunction(L, ui_bullet);      lua_setfield(L, -2, "BulletText");
+    lua_pushcfunction(L, ui_text_wrapped);lua_setfield(L, -2, "TextWrapped");
+    lua_pushcfunction(L, ui_text_disabled);lua_setfield(L, -2, "TextDisabled");
+    lua_pushcfunction(L, ui_label_text);  lua_setfield(L, -2, "LabelText");
+    lua_pushcfunction(L, ui_separator_text);lua_setfield(L, -2, "SeparatorText");
+    lua_pushcfunction(L, ui_newline);     lua_setfield(L, -2, "NewLine");
+    lua_pushcfunction(L, ui_indent);      lua_setfield(L, -2, "Indent");
+    lua_pushcfunction(L, ui_unindent);    lua_setfield(L, -2, "Unindent");
+    lua_pushcfunction(L, ui_dummy);       lua_setfield(L, -2, "Dummy");
+    lua_pushcfunction(L, ui_set_next_item_width); lua_setfield(L, -2, "SetNextItemWidth");
+    lua_pushcfunction(L, ui_push_id);     lua_setfield(L, -2, "PushID");
+    lua_pushcfunction(L, ui_pop_id);      lua_setfield(L, -2, "PopID");
+    lua_pushcfunction(L, ui_begin_group); lua_setfield(L, -2, "BeginGroup");
+    lua_pushcfunction(L, ui_end_group);   lua_setfield(L, -2, "EndGroup");
+    lua_pushcfunction(L, ui_small_button);lua_setfield(L, -2, "SmallButton");
+    lua_pushcfunction(L, ui_progress_bar);lua_setfield(L, -2, "ProgressBar");
+    lua_pushcfunction(L, ui_is_item_hovered); lua_setfield(L, -2, "IsItemHovered");
+    lua_pushcfunction(L, ui_is_item_clicked); lua_setfield(L, -2, "IsItemClicked");
+    lua_pushcfunction(L, ui_input_text);  lua_setfield(L, -2, "InputText");
+    lua_pushcfunction(L, ui_input_text_hint); lua_setfield(L, -2, "InputTextWithHint");
+    lua_pushcfunction(L, ui_input_int);   lua_setfield(L, -2, "InputInt");
+    lua_pushcfunction(L, ui_drag_int);    lua_setfield(L, -2, "DragInt");
+    lua_pushcfunction(L, ui_drag_float);  lua_setfield(L, -2, "DragFloat");
+    lua_pushcfunction(L, ui_checkbox_flags); lua_setfield(L, -2, "CheckboxFlags");
+    lua_pushcfunction(L, ui_color_edit3); lua_setfield(L, -2, "ColorEdit3");
+    lua_pushcfunction(L, ui_color_swatch);lua_setfield(L, -2, "ColorSwatch");
+    lua_pushcfunction(L, ui_combo);       lua_setfield(L, -2, "Combo");
+    lua_pushcfunction(L, ui_radio_button);lua_setfield(L, -2, "RadioButton");
+    lua_pushcfunction(L, ui_selectable);  lua_setfield(L, -2, "Selectable");
+    lua_pushcfunction(L, ui_tree_node);   lua_setfield(L, -2, "TreeNode");
+    lua_pushcfunction(L, ui_tree_pop);    lua_setfield(L, -2, "TreePop");
+    lua_pushcfunction(L, ui_collapsing_header); lua_setfield(L, -2, "CollapsingHeader");
+    lua_pushcfunction(L, ui_begin_child); lua_setfield(L, -2, "BeginChild");
+    lua_pushcfunction(L, ui_end_child);   lua_setfield(L, -2, "EndChild");
+    lua_pushcfunction(L, ui_begin_table); lua_setfield(L, -2, "BeginTable");
+    lua_pushcfunction(L, ui_table_setup_column); lua_setfield(L, -2, "TableSetupColumn");
+    lua_pushcfunction(L, ui_table_headers_row); lua_setfield(L, -2, "TableHeadersRow");
+    lua_pushcfunction(L, ui_table_next_row); lua_setfield(L, -2, "TableNextRow");
+    lua_pushcfunction(L, ui_table_next_column); lua_setfield(L, -2, "TableNextColumn");
+    lua_pushcfunction(L, ui_end_table);   lua_setfield(L, -2, "EndTable");
+    lua_pushcfunction(L, ui_begin_tab_bar); lua_setfield(L, -2, "BeginTabBar");
+    lua_pushcfunction(L, ui_begin_tab_item); lua_setfield(L, -2, "BeginTabItem");
+    lua_pushcfunction(L, ui_end_tab_item);lua_setfield(L, -2, "EndTabItem");
+    lua_pushcfunction(L, ui_end_tab_bar); lua_setfield(L, -2, "EndTabBar");
+    lua_pushcfunction(L, ui_open_popup);  lua_setfield(L, -2, "OpenPopup");
+    lua_pushcfunction(L, ui_begin_popup); lua_setfield(L, -2, "BeginPopup");
+    lua_pushcfunction(L, ui_begin_popup_modal); lua_setfield(L, -2, "BeginPopupModal");
+    lua_pushcfunction(L, ui_end_popup);   lua_setfield(L, -2, "EndPopup");
+    lua_pushcfunction(L, ui_close_current_popup); lua_setfield(L, -2, "CloseCurrentPopup");
+    lua_pushcfunction(L, ui_toast);       lua_setfield(L, -2, "Toast");
+    lua_pushcfunction(L, ui_info_row);    lua_setfield(L, -2, "InfoRow");
+    lua_pushcfunction(L, ui_chip);        lua_setfield(L, -2, "Chip");
+
+    // UI.Flags：常用 ImGui 位标志
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_pushinteger(L, ImGuiTableFlags_Borders);            lua_setfield(L, -2, "Borders");
+    lua_pushinteger(L, ImGuiTableFlags_RowBg);              lua_setfield(L, -2, "RowBg");
+    lua_pushinteger(L, ImGuiTableFlags_SizingStretchSame);  lua_setfield(L, -2, "SizingStretchSame");
+    lua_setfield(L, -2, "Table");
+    lua_newtable(L);
+    lua_pushinteger(L, ImGuiTableColumnFlags_WidthFixed);   lua_setfield(L, -2, "WidthFixed");
+    lua_setfield(L, -2, "TableColumn");
+    lua_newtable(L);
+    lua_pushinteger(L, ImGuiWindowFlags_NoMove);            lua_setfield(L, -2, "NoMove");
+    lua_pushinteger(L, ImGuiWindowFlags_NoResize);          lua_setfield(L, -2, "NoResize");
+    lua_pushinteger(L, ImGuiWindowFlags_NoTitleBar);        lua_setfield(L, -2, "NoTitleBar");
+    lua_setfield(L, -2, "Window");
+    lua_newtable(L);
+    lua_pushinteger(L, ImGuiSelectableFlags_AllowDoubleClick); lua_setfield(L, -2, "AllowDoubleClick");
+    lua_setfield(L, -2, "Selectable");
+    lua_setfield(L, -2, "Flags");
     lua_setglobal(L, "UI");
 
     // Native
@@ -732,6 +1104,9 @@ void register_api(lua_State* L) {
     lua_pushcfunction(L, native_class); lua_setfield(L, -2, "Class");
     lua_pushcfunction(L, native_ui);    lua_setfield(L, -2, "UI");
     lua_pushcfunction(L, l_log);        lua_setfield(L, -2, "Log");
+    lua_pushcfunction(L, native_hook);  lua_setfield(L, -2, "Hook");
+    lua_pushcfunction(L, luahook::l_orig);   lua_setfield(L, -2, "Orig");
+    lua_pushcfunction(L, luahook::l_setarg); lua_setfield(L, -2, "SetArg");
     lua_setglobal(L, "Native");
 
     // 元表
@@ -782,6 +1157,7 @@ lua_State* create_state(const std::string& mod_name, const std::string& mod_dir)
 
 void close_state(lua_State* L) {
     if (!L) return;
+    luahook::release_state(L);          // 先把 Hook 还原，再关 Lua
     auto* ms = state_of(L);
     if (ms) {
         for (auto& co : ms->cos) {

@@ -30,6 +30,10 @@ struct ImageInfo {
 std::mutex g_mutex;
 ImageInfo g_image;
 std::unordered_map<std::string, uintptr_t> g_syms;
+// MethodInfo -> methodPointer 字段偏移（首次探测后缓存）
+// 必须在首次探测后缓存：hook 之后字段里存的是我们自己的跳板地址，
+// 那个地址不在 UnityFramework 的 __TEXT 里，不能再靠 in_text 判断。
+std::unordered_map<void*, int> g_method_off;
 bool g_ready = false;
 std::string g_last_missing;
 
@@ -275,15 +279,37 @@ std::string to_utf8(String* s) {
     return out;
 }
 
-void* method_pointer(Method* m) {
-    if (!m || !ready()) return nullptr;
-    // 通用版：MethodInfo 的首字段长期都是 methodPointer；
-    // 读出来后必须落在 UnityFramework 的 __TEXT 里，否则认为布局不符。
-    for (size_t off : {size_t(0), size_t(8)}) {
-        uintptr_t v = *reinterpret_cast<const uintptr_t*>(reinterpret_cast<const char*>(m) + off);
-        if (in_text(v)) return reinterpret_cast<void*>(v);
+int method_pointer_offset(Method* m) {
+    if (!m || !ready()) return -1;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        auto it = g_method_off.find(m);
+        if (it != g_method_off.end()) return it->second;
     }
-    return nullptr;
+    // 首次探测：MethodInfo 的首字段长期都是 methodPointer，
+    // 值必须落在 UnityFramework 的 __TEXT 里才算数。
+    for (int off : {0, 8}) {
+        uintptr_t v = *reinterpret_cast<const uintptr_t*>(reinterpret_cast<const char*>(m) + off);
+        if (in_text(v)) {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_method_off[m] = off;
+            return off;
+        }
+    }
+    return -1;
+}
+
+void* method_pointer(Method* m) {
+    int off = method_pointer_offset(m);
+    if (off < 0) return nullptr;
+    return *reinterpret_cast<void**>(reinterpret_cast<char*>(m) + off);
+}
+
+bool set_method_pointer(Method* m, void* fn) {
+    int off = method_pointer_offset(m);
+    if (off < 0 || !fn) return false;
+    *reinterpret_cast<void**>(reinterpret_cast<char*>(m) + off) = fn;
+    return true;
 }
 
 }  // namespace il2
