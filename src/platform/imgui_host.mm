@@ -50,11 +50,57 @@ std::atomic<float> g_touch_y{0};
 // ---------------------------------------------------------------------------
 // 字体
 // ---------------------------------------------------------------------------
+// 收集候选字体：先试常见路径，再扫系统字体目录里名字带中文关键字的下标
+std::vector<std::string> font_candidates() {
+    std::vector<std::string> out;
+    const char* known[] = {
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/LanguageSupport/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/System/Library/Fonts/NotoSansCJK.ttc",
+        "/System/Library/Fonts/NotoSansCJK-Regular.ttc",
+        "/System/Library/Fonts/Core/PingFang.ttc",
+        "/System/Library/Fonts/AppFonts/PingFang.ttc",
+    };
+    for (const char* p : known) out.emplace_back(p);
+
+    @autoreleasepool {
+        NSArray<NSString*>* dirs = @[
+            @"/System/Library/Fonts",
+            @"/System/Library/Fonts/LanguageSupport",
+            @"/System/Library/Fonts/Core",
+            @"/System/Library/Fonts/AppFonts",
+            @"/System/Library/Fonts/CoreAddition",
+            @"/System/Library/Fonts/Supplemental",
+        ];
+        NSArray<NSString*>* keys = @[
+            @"PingFang", @"Hei", @"Hiragino", @"Song", @"Noto", @"Kai", @"Fallback", @"STHeiti",
+        ];
+        NSFileManager* fm = [NSFileManager defaultManager];
+        for (NSString* d in dirs) {
+            NSArray<NSString*>* files = [fm contentsOfDirectoryAtPath:d error:nil];
+            for (NSString* f in files) {
+                NSString* low = f.lowercaseString;
+                if (!([low hasSuffix:@".ttf"] || [low hasSuffix:@".ttc"] || [low hasSuffix:@".otf"]))
+                    continue;
+                for (NSString* k in keys) {
+                    if ([f containsString:k]) {
+                        out.push_back(std::string(d.UTF8String) + "/" + f.UTF8String);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return out;
+}
+
 void setup_fonts(ImGuiIO& io) {
     // 注意：不要用 GetGlyphRangesChineseFull()！
-    // 那是全量中文（约 2 万字），会生成 4096² 的大图集，
-    // 而这个初始化如果发生在 CADisplayLink 回调里，会因为超时被 watchdog 杀掉。
-    // 用「常用简体中文」（约 2500 字）足够菜单用，图集小得多。
+    // 全量中文约 2 万字，图集极大，在渲染回调里建会被 watchdog 杀掉。
+    // 「常用简体中文」约 2500 字，菜单够用。
     static ImVector<ImWchar> ranges;
     if (ranges.empty()) {
         ImFontGlyphRangesBuilder builder;
@@ -62,25 +108,37 @@ void setup_fonts(ImGuiIO& io) {
         builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
         builder.BuildRanges(&ranges);
     }
+    mm::logf("ImGui 字体：字形范围共 %d 个码点", (int)ranges.Size);
 
-    const char* candidates[] = {
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/STHeiti Light.ttc",
-        "/System/Library/Fonts/Hiragino Sans GB.ttc",
-    };
-    ImFontConfig cfg;
-    cfg.FontNo = 0;
-    cfg.OversampleH = 1;
-    cfg.OversampleV = 1;
-    for (const char* path : candidates) {
-        if (![[NSFileManager defaultManager] fileExistsAtPath:@(path)]) continue;
-        mm::logf("ImGui 字体：尝试加载 %s ...", path);
-        if (io.Fonts->AddFontFromFileTTF(path, 17.0f, &cfg, ranges.Data) != nullptr) {
-            mm::logf("ImGui 字体：%s", path);
-            return;
+    auto cands = font_candidates();
+    mm::logf("ImGui 字体：候选 %zu 个", cands.size());
+    int tried = 0;
+    for (const auto& path : cands) {
+        @autoreleasepool {
+            if (![[NSFileManager defaultManager] fileExistsAtPath:@(path.c_str())]) continue;
         }
+        ++tried;
+        // .ttc 是字体集合，逐个下标试
+        for (int idx = 0; idx < 4; ++idx) {
+            // 关键：字形要等 Build 之后才有，所以每个候选都建一次图集再判定
+            io.Fonts->Clear();
+            ImFontConfig cfg;
+            cfg.FontNo = idx;
+            cfg.OversampleH = 1;
+            cfg.OversampleV = 1;
+            ImFont* f = io.Fonts->AddFontFromFileTTF(path.c_str(), 17.0f, &cfg, ranges.Data);
+            if (!f) break;                          // 文件本身打不开，换下一个候选
+            io.Fonts->Build();
+            if (f->FindGlyphNoFallback((ImWchar)0x4E2D) != nullptr) {
+                mm::logf("ImGui 字体：✓ %s（FontNo=%d）", path.c_str(), idx);
+                return;
+            }
+        }
+        mm::logf("ImGui 字体：✗ %s", path.c_str());
     }
-    mm::logf("ImGui 字体：没找到中文字体，回退默认字体（中文会显示成方块）");
+    mm::logf("ImGui 字体：全部失败（存在但打不开的有 %d 个），回退默认字体，中文会变成问号",
+             tried);
+    io.Fonts->Clear();
     io.Fonts->AddFontDefault();
 }
 
@@ -100,7 +158,7 @@ void init_imgui(id<MTLDevice> device) {
 
     // 显式建图集，并把耗时打出来（放这里比放在渲染回调里安全）
     double t0 = CACurrentMediaTime();
-    io.Fonts->Build();
+    if (!io.Fonts->IsBuilt()) io.Fonts->Build();
     mm::logf("ImGui 图集已生成，耗时 %.0f ms", (CACurrentMediaTime() - t0) * 1000.0);
 
     if (!ImGui_ImplMetal_Init(device)) {
