@@ -300,9 +300,16 @@ void render_overlay() {
         // 按需渲染：菜单收起、也没在触摸时，降到 5 帧/秒的心跳。
         // 叠加层是全屏的，每帧清理+绘制会明显吃掉游戏帧率，这一步很关键。
         // ------------------------------------------------------------------
+        // ---- D 档：分级帧率 ----
+        //   菜单开着 / 正在触摸 -> 满帧（跟手优先）
+        //   只有修改器开着       -> 15fps（要持续写字段，但不需要 60）
+        //   什么都不动           -> 5fps 心跳
         const double t_now = CACurrentMediaTime();
-        const bool interacting = ui::visible() || g_touching.load() || cheat::active();
-        if (!interacting && (t_now - g_last_present) < kIdleInterval) return;
+        const bool touching = g_touching.load();
+        const bool interacting = ui::visible() || touching;
+        double interval = 0.0;
+        if (!interacting) interval = cheat::active() ? (1.0 / 15.0) : kIdleInterval;
+        if (interval > 0 && (t_now - g_last_present) < interval) return;
 
         // 旋转/尺寸变化时把叠加层对齐到整屏
         // （曾试过"只覆盖 UI 实际区域"，但在 Metal 后端上坐标平移没生效，
@@ -425,6 +432,26 @@ bool ready() { return g_imgui_ready; }
 
 bool start() {
     if (g_started.exchange(true)) return true;
+
+    // D 档：渲染层也做一次多副本防护。
+    // entry.mm 已经挡过一次，但万一某个副本的构造函数被跳过，
+    // 也不能让两个叠加层同时挂上来（那是帧率暴跌的直接原因）。
+    {
+        Dl_info me;
+        if (dladdr(reinterpret_cast<const void*>(&start), &me) && me.dli_fbase) {
+            uint32_t count = _dyld_image_count();
+            for (uint32_t i = 0; i < count; ++i) {
+                const char* nm = _dyld_get_image_name(i);
+                if (!nm || !strstr(nm, "TerrariaModMenu")) continue;
+                if (reinterpret_cast<const void*>(_dyld_get_image_header(i)) != me.dli_fbase) {
+                    mm::logf("渲染层：检测到更早的副本，本副本不挂叠加层");
+                    g_started.store(false);
+                    return false;
+                }
+                break;
+            }
+        }
+    }
 
     // 安全开关：Documents/ModMenu_norender 存在时，只加载 dylib、不挂任何渲染，
     // 用来排查"是不是渲染层把游戏搞崩了"。

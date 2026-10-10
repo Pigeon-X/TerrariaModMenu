@@ -48,6 +48,18 @@ inline void logf(const char* fmt, ...) {
 
     FILE* f = fopen(log_path().c_str(), "a");
     if (f) {
+        // D 档：日志超过 512KB 就轮转一次，避免长期游玩把文件撑到几百 MB
+        static long checks = 0;
+        if ((++checks % 256) == 0) {
+            long sz = ftell(f);
+            if (sz > 512 * 1024) {
+                fclose(f);
+                f = nullptr;
+                rename(log_path().c_str(), (log_path() + ".old").c_str());
+                f = fopen(log_path().c_str(), "a");
+            }
+        }
+        if (!f) return;
         time_t now = time(nullptr);
         char ts[32];
         strftime(ts, sizeof(ts), "%H:%M:%S", localtime(&now));
