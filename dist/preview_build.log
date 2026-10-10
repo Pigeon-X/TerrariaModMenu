@@ -1,31 +1,31 @@
 main.cpp
 menu.mm
-src\ui\menu.mm(377): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(377): error C3861: 'get_float': identifier not found
-src\ui\menu.mm(378): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(378): error C3861: 'get_float': identifier not found
-src\ui\menu.mm(379): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(379): error C3861: 'get_float': identifier not found
-src\ui\menu.mm(380): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(380): error C3861: 'get_int': identifier not found
-src\ui\menu.mm(382): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(382): error C3861: 'set_float': identifier not found
-src\ui\menu.mm(383): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(383): error C3861: 'set_float': identifier not found
-src\ui\menu.mm(384): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(384): error C3861: 'set_float': identifier not found
-src\ui\menu.mm(385): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(385): error C3861: 'set_int': identifier not found
-src\ui\menu.mm(386): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(386): error C3861: 'tick': identifier not found
-src\ui\menu.mm(455): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(455): error C3861: 'set_float': identifier not found
-src\ui\menu.mm(456): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(456): error C3861: 'set_float': identifier not found
-src\ui\menu.mm(457): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(457): error C3861: 'set_float': identifier not found
-src\ui\menu.mm(458): error C2653: 'cfg': is not a class or namespace name
-src\ui\menu.mm(458): error C3861: 'set_float': identifier not found
+src\ui\menu.mm(392): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(392): error C3861: 'get_float': identifier not found
+src\ui\menu.mm(393): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(393): error C3861: 'get_float': identifier not found
+src\ui\menu.mm(394): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(394): error C3861: 'get_float': identifier not found
+src\ui\menu.mm(395): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(395): error C3861: 'get_int': identifier not found
+src\ui\menu.mm(397): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(397): error C3861: 'set_float': identifier not found
+src\ui\menu.mm(398): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(398): error C3861: 'set_float': identifier not found
+src\ui\menu.mm(399): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(399): error C3861: 'set_float': identifier not found
+src\ui\menu.mm(400): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(400): error C3861: 'set_int': identifier not found
+src\ui\menu.mm(401): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(401): error C3861: 'tick': identifier not found
+src\ui\menu.mm(470): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(470): error C3861: 'set_float': identifier not found
+src\ui\menu.mm(471): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(471): error C3861: 'set_float': identifier not found
+src\ui\menu.mm(472): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(472): error C3861: 'set_float': identifier not found
+src\ui\menu.mm(473): error C2653: 'cfg': is not a class or namespace name
+src\ui\menu.mm(473): error C3861: 'set_float': identifier not found
 imgui.cpp
 imgui_draw.cpp
 imgui_tables.cpp
