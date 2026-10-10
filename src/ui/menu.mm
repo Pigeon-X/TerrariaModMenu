@@ -22,7 +22,7 @@ std::mutex g_mutex;
 bool g_visible = true;
 void* g_ball_tex = nullptr;
 ImVec2 g_ball_pos(60, 200);          // 球的位置（可拖动）
-constexpr float kBallSize = 96.0f;   // 球的显示尺寸（像素）
+constexpr float kBallSize = 150.0f;  // 球的显示尺寸（像素）
 std::deque<std::string> g_log;
 std::vector<std::pair<std::string, PanelFn>> g_panels;
 char g_filter[128] = "";
@@ -170,10 +170,10 @@ void draw() {
         return;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(560, 420), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(40, 120), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(980, 700), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(60, 140), ImGuiCond_FirstUseEver);
     // 可缩放：给个下限，避免拖没了
-    ImGui::SetNextWindowSizeConstraints(ImVec2(320, 220), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(560, 380), ImVec2(FLT_MAX, FLT_MAX));
     if (!ImGui::Begin("Terraria ModMenu", nullptr,
                       ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar)) {
         ImGui::End();
@@ -186,9 +186,9 @@ void draw() {
             ImGui::EndMenu();
         }
         // 右对齐的 ❌：收起回球状态
-        float btn_w = ImGui::CalcTextSize("✕").x + ImGui::GetStyle().FramePadding.x * 2;
+        float btn_w = ImGui::CalcTextSize("✕ 收起").x + ImGui::GetStyle().FramePadding.x * 2;
         ImGui::SameLine(ImGui::GetWindowWidth() - btn_w - 12.0f);
-        if (ImGui::Button("✕")) set_visible(false);
+        if (ImGui::Button("✕ 收起")) set_visible(false);
         ImGui::EndMenuBar();
     }
 

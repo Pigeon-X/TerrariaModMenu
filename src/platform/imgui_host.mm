@@ -39,6 +39,7 @@ std::atomic<bool> g_started{false};
 bool g_imgui_ready = false;
 double g_last_time = 0;
 std::atomic<int> g_render_count{0};
+float g_font_px = 48.0f;      // 实际字号（像素），按屏幕缩放算出来
 
 CAMetalLayer* g_layer = nil;
 id<MTLCommandQueue> g_queue = nil;
@@ -132,7 +133,7 @@ void setup_fonts(ImGuiIO& io) {
             cfg.FontNo = idx;
             cfg.OversampleH = 1;
             cfg.OversampleV = 1;
-            ImFont* f = io.Fonts->AddFontFromFileTTF(path.c_str(), 17.0f, &cfg, ranges.Data);
+            ImFont* f = io.Fonts->AddFontFromFileTTF(path.c_str(), g_font_px, &cfg, ranges.Data);
             if (!f) break;                          // 文件本身打不开，换下一个候选
             io.Fonts->Build();
             if (f->FindGlyphNoFallback((ImWchar)0x4E2D) != nullptr) {
@@ -199,7 +200,10 @@ void init_imgui(id<MTLDevice> device) {
     io.LogFilename = nullptr;
 
     ImGui::StyleColorsDark();
-    ImGui::GetStyle().ScaleAllSizes(1.8f);   // 手机上控件太小
+    // 坐标系是物理像素，字号必须按屏幕缩放来定，
+    // 否则 17px 在 3x 屏上只有 5.7pt —— 小得看不清。
+    const float font_px = g_font_px;
+    ImGui::GetStyle().ScaleAllSizes(font_px / 13.0f);   // ImGui 默认风格是按 13px 字号设计的
     setup_fonts(io);
 
     // 显式建图集，并把耗时打出来（放这里比放在渲染回调里安全）
@@ -241,6 +245,7 @@ bool setup_overlay() {
     g_window = pick_window();
     if (!g_window) { mm::logf("叠加层：拿不到窗口，放弃"); return false; }
     g_scale = g_window.screen.scale ?: 3.0;
+    g_font_px = 16.0f * (float)g_scale;      // 16pt 换算成像素
 
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
     if (!device) { mm::logf("叠加层：拿不到 Metal 设备"); return false; }
