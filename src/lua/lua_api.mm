@@ -449,7 +449,11 @@ int method_index(lua_State* L) {
         return 1;
     }
     if (strcmp(key, "paramCount") == 0) {
-        lua_pushinteger(L, il2::method_get_param_count(lm->m));
+        lua_pushcfunction(L, [](lua_State* L2) {
+            auto* m = static_cast<LuaMethod*>(luaL_checkudata(L2, 1, MT_METHOD));
+            lua_pushinteger(L2, il2::method_get_param_count(m->m));
+            return 1;
+        });
         return 1;
     }
     lua_pushnil(L);
@@ -494,8 +498,12 @@ int field_index(lua_State* L) {
         return 1;
     }
     if (strcmp(key, "name") == 0) {
-        auto* lf = static_cast<LuaField*>(luaL_checkudata(L, 1, MT_FIELD));
-        lua_pushstring(L, il2::field_get_name(lf->f));
+        lua_pushcfunction(L, [](lua_State* L2) {
+            auto* lf = static_cast<LuaField*>(luaL_checkudata(L2, 1, MT_FIELD));
+            const char* nm = lf->f ? il2::field_get_name(lf->f) : nullptr;
+            lua_pushstring(L2, nm ? nm : "?");
+            return 1;
+        });
         return 1;
     }
     lua_pushnil(L);
@@ -545,15 +553,22 @@ int class_index(lua_State* L) {
     if (strcmp(key, "field") == 0) { lua_pushcfunction(L, class_field); return 1; }
     if (strcmp(key, "new") == 0) { lua_pushcfunction(L, class_new); return 1; }
     if (strcmp(key, "name") == 0) {
-        il2::Class* k = check_class(L, 1);
-        lua_pushstring(L, il2::class_get_name(k));
+        lua_pushcfunction(L, [](lua_State* L2) {
+            il2::Class* k = check_class(L2, 1);
+            const char* nm = k ? il2::class_get_name(k) : nullptr;
+            lua_pushstring(L2, nm ? nm : "?");
+            return 1;
+        });
         return 1;
     }
     if (strcmp(key, "fullName") == 0) {
-        il2::Class* k = check_class(L, 1);
-        const char* ns = il2::class_get_namespace(k);
-        const char* nm = il2::class_get_name(k);
-        lua_pushfstring(L, "%s.%s", ns ? ns : "", nm ? nm : "?");
+        lua_pushcfunction(L, [](lua_State* L2) {
+            il2::Class* k = check_class(L2, 1);
+            const char* ns = k ? il2::class_get_namespace(k) : nullptr;
+            const char* nm = k ? il2::class_get_name(k) : nullptr;
+            lua_pushfstring(L2, "%s.%s", ns ? ns : "", nm ? nm : "?");
+            return 1;
+        });
         return 1;
     }
     if (strcmp(key, "parent") == 0) {

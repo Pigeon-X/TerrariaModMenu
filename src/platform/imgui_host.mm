@@ -1,12 +1,20 @@
 //
-// ImGui + Metal 宿主实现。
+// ImGui + Metal 宿主
+// ---------------------------------------------------------------------------
+// 之前试过钩游戏自己的 Metal present 方法，但实测（iOS 1.4.5.8.1 / A15）：
+//   游戏确实在用 Metal（CAMetalLayer nextDrawable 会被调用），
+//   但从不调用 -presentDrawable: / -presentDrawable:afterMinimumDuration:，
+//   所以钩子一次都没触发，界面出不来。
+//
+// 改成**完全不依赖游戏内部**的做法：
+//   自己在窗口上叠一层透明的 CAMetalLayer，用自己的 CADisplayLink 驱动渲染。
+//   游戏怎么画都跟我们无关，我们只管在自己的层上画菜单。
 //
 #include "imgui_host.hpp"
 
 #include <objc/runtime.h>
 
 #include <atomic>
-#include <vector>
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -26,48 +34,23 @@ namespace {
 
 std::atomic<bool> g_started{false};
 bool g_imgui_ready = false;
-id<MTLDevice> g_device = nil;
 double g_last_time = 0;
 std::atomic<int> g_render_count{0};
-std::atomic<bool> g_logged_layer{false};
+
+CAMetalLayer* g_layer = nil;
+id<MTLCommandQueue> g_queue = nil;
+UIWindow* g_window = nil;
+CGFloat g_scale = 1.0;
 
 // 触摸状态（钩 UIWindow sendEvent: 拿到的，单位：物理像素）
 std::atomic<bool> g_touching{false};
 std::atomic<float> g_touch_x{0};
 std::atomic<float> g_touch_y{0};
-CGFloat g_scale = 1.0;
-
-// ---------------------------------------------------------------------------
-// swizzle 小工具
-// ---------------------------------------------------------------------------
-template <typename T>
-void swizzle(Class cls, SEL sel, IMP new_imp, T* out_old) {
-    Method m = class_getInstanceMethod(cls, sel);
-    if (!m) return;
-    // IMP 不能隐式转成具体函数指针，必须显式转
-    if (out_old) *out_old = reinterpret_cast<T>(method_getImplementation(m));
-    method_setImplementation(m, new_imp);
-}
-
-// 找实现了 presentDrawable: 的 Metal 命令缓冲类。
-// 不写死类名（不同 iOS 版本驱动类名不一样）：自己造一个命令缓冲，
-// 直接问它属于哪个类 —— 比扫全运行时更稳，也没有 ARC 所有权问题。
-Class find_command_buffer_class() {
-    id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
-    if (!dev) return Nil;
-    id<MTLCommandQueue> queue = [dev newCommandQueue];
-    if (!queue) return Nil;
-    id<MTLCommandBuffer> probe = [queue commandBuffer];
-    if (!probe) return Nil;
-    Class cls = object_getClass(probe);
-    return class_getInstanceMethod(cls, @selector(presentDrawable:)) ? cls : Nil;
-}
 
 // ---------------------------------------------------------------------------
 // 字体
 // ---------------------------------------------------------------------------
 void setup_fonts(ImGuiIO& io) {
-    // 中文界面必须有中文字形，系统里最稳的是苹方
     const char* candidates[] = {
         "/System/Library/Fonts/PingFang.ttc",
         "/System/Library/Fonts/STHeiti Light.ttc",
@@ -89,21 +72,17 @@ void setup_fonts(ImGuiIO& io) {
     io.Fonts->AddFontDefault();
 }
 
-// ---------------------------------------------------------------------------
-// 渲染
-// ---------------------------------------------------------------------------
 void init_imgui(id<MTLDevice> device) {
     if (g_imgui_ready) return;
-    g_device = device;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;   // 不落 imgui.ini，免得多写文件
+    io.IniFilename = nullptr;
     io.LogFilename = nullptr;
 
     ImGui::StyleColorsDark();
-    ImGui::GetStyle().ScaleAllSizes(1.6f);   // 手机上控件太小
+    ImGui::GetStyle().ScaleAllSizes(1.8f);   // 手机上控件太小
     setup_fonts(io);
 
     if (!ImGui_ImplMetal_Init(device)) {
@@ -115,77 +94,105 @@ void init_imgui(id<MTLDevice> device) {
     mm::logf("ImGui 初始化完成（device=%s）", [[device name] UTF8String]);
 }
 
-void render_ui(id<MTLCommandBuffer> cb, id<MTLDrawable> drawable) {
-    if (!cb) return;
-    init_imgui([cb device]);
-    if (!g_imgui_ready) return;
-
-    id<CAMetalDrawable> md = (id<CAMetalDrawable>)drawable;
-    if (!md || !md.texture) return;
-
-    if (++g_render_count == 1) {
-        mm::logf("诊断：第一次拿到可绘制对象 %dx%d，像素格式 %lu",
-                 (int)md.texture.width, (int)md.texture.height,
-                 (unsigned long)md.texture.pixelFormat);
+// ---------------------------------------------------------------------------
+// 叠加层
+// ---------------------------------------------------------------------------
+UIWindow* pick_window() {
+    UIWindow* fallback = nil;
+    for (UIWindow* w in [UIApplication sharedApplication].windows) {
+        if (!fallback) fallback = w;
+        if (w.isKeyWindow) return w;
     }
+    return fallback;
+}
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2((float)md.texture.width, (float)md.texture.height);
-    double now = CACurrentMediaTime();
-    float dt = (float)(now - g_last_time);
-    g_last_time = now;
-    io.DeltaTime = (dt > 0.0f && dt < 0.5f) ? dt : (1.0f / 60.0f);
-    io.MousePos = ImVec2(g_touch_x.load(), g_touch_y.load());
-    io.MouseDown[0] = g_touching.load();
+bool setup_overlay() {
+    g_window = pick_window();
+    if (!g_window) { mm::logf("叠加层：拿不到窗口，放弃"); return false; }
+    g_scale = g_window.screen.scale ?: 3.0;
 
-    MTLRenderPassDescriptor* rpd = [MTLRenderPassDescriptor renderPassDescriptor];
-    rpd.colorAttachments[0].texture = md.texture;
-    rpd.colorAttachments[0].loadAction = MTLLoadActionLoad;    // 保留游戏画面
-    rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    if (!device) { mm::logf("叠加层：拿不到 Metal 设备"); return false; }
 
-    ImGui_ImplMetal_NewFrame(rpd);
-    ImGui::NewFrame();
-    mods::tick();          // Mod 的 onUpdate + 协程推进
-    ui::draw();
-    ImGui::Render();
+    g_layer = [CAMetalLayer layer];
+    g_layer.device = device;
+    g_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    g_layer.framebufferOnly = NO;
+    g_layer.opaque = NO;
+    g_layer.backgroundColor = [UIColor clearColor].CGColor;
+    g_layer.contentsScale = g_scale;
+    g_layer.frame = g_window.bounds;
+    g_layer.drawableSize = CGSizeMake(g_window.bounds.size.width * g_scale,
+                                      g_window.bounds.size.height * g_scale);
+    g_layer.zPosition = 10000;              // 压在最上面
 
-    id<MTLRenderCommandEncoder> enc = [cb renderCommandEncoderWithDescriptor:rpd];
-    if (enc) {
+    [g_window.layer addSublayer:g_layer];
+    g_queue = [device newCommandQueue];
+
+    mm::logf("叠加层已挂上：frame=%.0fx%.0f drawable=%.0fx%.0f 缩放=%.1f 父层=%s",
+             g_layer.frame.size.width, g_layer.frame.size.height,
+             g_layer.drawableSize.width, g_layer.drawableSize.height,
+             (double)g_scale,
+             g_layer.superlayer ? "有" : "无");
+    return g_queue != nil;
+}
+
+void render_overlay() {
+    if (!g_layer || !g_queue) return;
+    @autoreleasepool {
+        // 旋转/尺寸变化时同步
+        CGSize bounds = g_window.bounds.size;
+        if (bounds.width > 0 && !CGSizeEqualToSize(g_layer.frame.size, bounds)) {
+            g_layer.frame = g_window.bounds;
+            g_layer.drawableSize = CGSizeMake(bounds.width * g_scale, bounds.height * g_scale);
+            mm::logf("叠加层尺寸更新 -> %.0fx%.0f", bounds.width, bounds.height);
+        }
+
+        id<CAMetalDrawable> drawable = [g_layer nextDrawable];
+        if (!drawable) return;
+
+        init_imgui(g_layer.device);
+        if (!g_imgui_ready) return;
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2((float)g_layer.drawableSize.width,
+                                (float)g_layer.drawableSize.height);
+        double now = CACurrentMediaTime();
+        float dt = (float)(now - g_last_time);
+        g_last_time = now;
+        io.DeltaTime = (dt > 0.0f && dt < 0.5f) ? dt : (1.0f / 60.0f);
+        io.MousePos = ImVec2(g_touch_x.load(), g_touch_y.load());
+        io.MouseDown[0] = g_touching.load();
+
+        MTLRenderPassDescriptor* rpd = [MTLRenderPassDescriptor renderPassDescriptor];
+        rpd.colorAttachments[0].texture = drawable.texture;
+        rpd.colorAttachments[0].loadAction = MTLLoadActionClear;
+        rpd.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);   // 全透明
+        rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
+
+        ImGui_ImplMetal_NewFrame(rpd);
+        ImGui::NewFrame();
+        mods::tick();
+        ui::draw();
+        ImGui::Render();
+
+        id<MTLCommandBuffer> cb = [g_queue commandBuffer];
+        id<MTLRenderCommandEncoder> enc = [cb renderCommandEncoderWithDescriptor:rpd];
         ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), cb, enc);
         [enc endEncoding];
-    }
-}
+        [cb presentDrawable:drawable];
+        [cb commit];
 
-// 原始的 present 方法，由 swizzle 保存
-void (*g_orig_present)(id, SEL, id<MTLDrawable>) = nullptr;
-void (*g_orig_present_amd)(id, SEL, id<MTLDrawable>, double) = nullptr;
-id (*g_orig_next_drawable)(id, SEL) = nullptr;
-
-void mm_present_drawable(id self, SEL _cmd, id<MTLDrawable> drawable) {
-    @autoreleasepool {
-        render_ui((id<MTLCommandBuffer>)self, drawable);
+        if (++g_render_count == 1) {
+            mm::logf("诊断：叠加层第一次渲染成功（%dx%d，像素格式 %lu）",
+                     (int)drawable.texture.width, (int)drawable.texture.height,
+                     (unsigned long)drawable.texture.pixelFormat);
+        }
     }
-    if (g_orig_present) g_orig_present(self, _cmd, drawable);
-}
-
-// 新一点的引擎会用这个重载（带最少显示时长），Unity 很可能走它
-void mm_present_drawable_amd(id self, SEL _cmd, id<MTLDrawable> drawable, double duration) {
-    @autoreleasepool {
-        render_ui((id<MTLCommandBuffer>)self, drawable);
-    }
-    if (g_orig_present_amd) g_orig_present_amd(self, _cmd, drawable, duration);
-}
-
-// 只是拿来做诊断：告诉我们 Metal 到底有没有在用
-id mm_next_drawable(id self, SEL _cmd) {
-    if (!g_logged_layer.exchange(true)) {
-        mm::logf("诊断：检测到 CAMetalLayer nextDrawable，Metal 正在被使用");
-    }
-    return g_orig_next_drawable ? g_orig_next_drawable(self, _cmd) : nil;
 }
 
 // ---------------------------------------------------------------------------
-// 触摸：勾 UIWindow 的 sendEvent:，喂给 ImGui；点在菜单上就不往下传
+// 触摸
 // ---------------------------------------------------------------------------
 void (*g_orig_send_event)(id, SEL, UIEvent*) = nullptr;
 
@@ -196,7 +203,6 @@ void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
             CGPoint p = [t locationInView:self];
             g_touch_x.store((float)(p.x * g_scale));
             g_touch_y.store((float)(p.y * g_scale));
-
             switch (t.phase) {
                 case UITouchPhaseBegan:
                 case UITouchPhaseMoved:
@@ -207,7 +213,6 @@ void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
                     g_touching.store(false);
                     break;
             }
-            // 用上一帧 ImGui 的判断决定这一下要不要吃掉
             if (t.phase == UITouchPhaseBegan && ImGui::GetCurrentContext() &&
                 ImGui::GetIO().WantCaptureMouse) {
                 swallow = YES;
@@ -217,57 +222,68 @@ void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
     if (!swallow && g_orig_send_event) g_orig_send_event(self, _cmd, event);
 }
 
+template <typename T>
+void swizzle(Class cls, SEL sel, IMP new_imp, T* out_old) {
+    Method m = class_getInstanceMethod(cls, sel);
+    if (!m) return;
+    if (out_old) *out_old = reinterpret_cast<T>(method_getImplementation(m));
+    method_setImplementation(m, new_imp);
+}
+
 }  // namespace
+
+void start_display_link();
+void start_display_link() {
+    static CADisplayLink* link = nil;
+    static id target = nil;
+    if (link) return;
+    target = [NSClassFromString(@"MMDisplayLinkTarget") new];
+    link = [CADisplayLink displayLinkWithTarget:target selector:NSSelectorFromString(@"tick:")];
+    [link addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+    mm::logf("显示链接已启动（CADisplayLink）");
+}
 
 bool ready() { return g_imgui_ready; }
 
 bool start() {
     if (g_started.exchange(true)) return true;
 
-    g_scale = [UIScreen mainScreen].scale ?: 1.0;
-    mm::logf("屏幕缩放 = %.1f", (double)g_scale);
-
-    Class cb_cls = find_command_buffer_class();
-    if (!cb_cls) {
-        mm::logf("没找到 Metal 命令缓冲类，界面无法挂载");
+    if (!setup_overlay()) {
         g_started.store(false);
         return false;
     }
-    mm::logf("Metal 命令缓冲类：%s", class_getName(cb_cls));
-
-    swizzle(cb_cls, @selector(presentDrawable:), (IMP)mm_present_drawable, &g_orig_present);
-    mm::logf("  钩 presentDrawable:                      %s",
-             g_orig_present ? "OK" : "该方法不存在");
-    swizzle(cb_cls, @selector(presentDrawable:afterMinimumDuration:),
-            (IMP)mm_present_drawable_amd, &g_orig_present_amd);
-    mm::logf("  钩 presentDrawable:afterMinimumDuration: %s",
-             g_orig_present_amd ? "OK" : "该方法不存在");
 
     swizzle([UIWindow class], @selector(sendEvent:), (IMP)mm_send_event, &g_orig_send_event);
-    mm::logf("  钩 UIWindow sendEvent:                   %s",
-             g_orig_send_event ? "OK" : "该方法不存在");
-
-    swizzle([CAMetalLayer class], @selector(nextDrawable), (IMP)mm_next_drawable, &g_orig_next_drawable);
-    mm::logf("  钩 CAMetalLayer nextDrawable（诊断用）    %s",
-             g_orig_next_drawable ? "OK" : "该方法不存在");
+    mm::logf("  钩 UIWindow sendEvent:  %s", g_orig_send_event ? "OK" : "该方法不存在");
 
     ui::set_visible(true);
+    start_display_link();
 
-    // 8 秒后看有没有真的渲染到，给日志一个明确的结论
+    // 8 秒后给个明确结论
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
         int n = g_render_count.load();
         if (n == 0) {
-            mm::logf("警告：8 秒内一次都没渲染到 —— 游戏没走我们钩的那些 present 方法");
-            mm::logf("        presentDrawable:%s  afterMinimumDuration:%s  nextDrawable:%s",
-                     g_orig_present ? "已挂" : "无",
-                     g_orig_present_amd ? "已挂" : "无",
-                     g_orig_next_drawable ? "已挂" : "无");
+            mm::logf("警告：8 秒内叠加层一次都没画出来（nextDrawable 拿不到？）");
         } else {
-            mm::logf("诊断：8 秒内渲染了 %d 帧，界面应该在屏幕上", n);
+            mm::logf("诊断：8 秒内叠加层画了 %d 帧，菜单应该在屏幕上", n);
         }
     });
     return true;
 }
 
 }  // namespace host
+
+// ---------------------------------------------------------------------------
+// CADisplayLink 需要一个 ObjC 对象当 target
+// ---------------------------------------------------------------------------
+@interface MMDisplayLinkTarget : NSObject
+- (void)tick:(CADisplayLink*)link;
+@end
+
+@implementation MMDisplayLinkTarget
+- (void)tick:(CADisplayLink*)link {
+    (void)link;
+    host::render_overlay();
+}
+@end
