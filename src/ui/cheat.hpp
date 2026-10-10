@@ -17,4 +17,7 @@ bool active();
 // 画「修改器」标签页
 void draw_tab();
 
+// 配置持久化（C 档）
+void load_state();
+
 }  // namespace cheat

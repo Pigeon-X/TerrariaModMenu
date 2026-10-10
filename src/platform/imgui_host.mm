@@ -290,6 +290,12 @@ bool setup_overlay() {
 void render_overlay() {
     if (!g_layer || !g_queue) return;
     @autoreleasepool {
+        // 防录屏（C 档）：检测到屏幕录制/镜像时，直接把自己的层藏起来
+        if ([UIScreen mainScreen].isCaptured) {
+            if (!g_layer.hidden) { g_layer.hidden = YES; mm::logf("检测到录屏，已隐藏菜单层"); }
+            return;
+        }
+        if (g_layer.hidden) g_layer.hidden = NO;
         // ------------------------------------------------------------------
         // 按需渲染：菜单收起、也没在触摸时，降到 5 帧/秒的心跳。
         // 叠加层是全屏的，每帧清理+绘制会明显吃掉游戏帧率，这一步很关键。

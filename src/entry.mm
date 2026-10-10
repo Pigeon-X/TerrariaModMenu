@@ -11,9 +11,11 @@
 
 #include "il2cpp_api.hpp"
 #include "mm_log.hpp"
+#include "core/config.hpp"
 #include "mods/mod_loader.hpp"
 #include "platform/imgui_host.hpp"
 #include "ui/menu.hpp"
+#include "ui/cheat.hpp"
 
 namespace {
 
@@ -143,6 +145,9 @@ static void modmenu_entry() {
         mm::logf("包里检测到多个 ModMenu 副本，这一份让位（只让最先加载的那份干活）");
         return;
     }
+
+    cfg::load();          // 先读配置（界面和修改器开关都靠它恢复）
+    cheat::load_state();
 
     // 用 dyld 回调第一时间发现 UnityFramework（比单纯轮询更可靠）
     _dyld_register_func_for_add_image(image_added);

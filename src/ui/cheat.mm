@@ -8,6 +8,7 @@
 
 #include "../il2cpp_api.hpp"
 #include "../mm_log.hpp"
+#include "../core/config.hpp"
 
 namespace cheat {
 namespace {
@@ -158,6 +159,29 @@ bool active() {
 
 void tick() {
     if (!gReady && !init()) return;
+    // 每帧把状态写进配置（cfg::set 只在值变化时标脏，落盘由 cfg::tick 节流）
+    cfg::set_bool("cheat.god", c_god);
+    cfg::set_bool("cheat.infMana", c_infMana);
+    cfg::set_bool("cheat.noFall", c_noFall);
+    cfg::set_bool("cheat.water", c_water);
+    cfg::set_bool("cheat.lava", c_lava);
+    cfg::set_bool("cheat.invis", c_invis);
+    cfg::set_bool("cheat.defense", c_defense);
+    cfg::set_bool("cheat.speed", c_speed);
+    cfg::set_float("cheat.speedVal", v_speed);
+    cfg::set_bool("cheat.fly", c_fly);
+    cfg::set_bool("world.hardMode", c_hardMode);
+    cfg::set_bool("world.bloodMoon", c_bloodMoon);
+    cfg::set_bool("world.eclipse", c_eclipse);
+    cfg::set_bool("world.rain", c_rain);
+    cfg::set_bool("world.sand", c_sand);
+    cfg::set_bool("world.wind", c_wind);
+    cfg::set_bool("world.day", c_day);
+    cfg::set_bool("world.night", c_night);
+    cfg::set_bool("world.freeze", c_freezeTime);
+    cfg::set_int("item.id", v_itemId);
+    cfg::set_int("item.count", v_itemCount);
+
     if (!active()) return;
     il2::Object* p = me();
     if (!p) return;
@@ -193,6 +217,30 @@ void tick() {
     if (c_day) write_f(nullptr, f_dayRate, true, 10.0f);      // 时间快进到白天
     if (c_night) write_f(nullptr, f_dayRate, true, -10.0f);
     if (c_freezeTime) write_f(nullptr, f_dayRate, true, 0.0f);
+}
+
+void load_state() {
+    c_god = cfg::get_bool("cheat.god", false);
+    c_infMana = cfg::get_bool("cheat.infMana", false);
+    c_noFall = cfg::get_bool("cheat.noFall", false);
+    c_water = cfg::get_bool("cheat.water", false);
+    c_lava = cfg::get_bool("cheat.lava", false);
+    c_invis = cfg::get_bool("cheat.invis", false);
+    c_defense = cfg::get_bool("cheat.defense", false);
+    c_speed = cfg::get_bool("cheat.speed", false);
+    v_speed = cfg::get_float("cheat.speedVal", 2.0f);
+    c_fly = cfg::get_bool("cheat.fly", false);
+    c_hardMode = cfg::get_bool("world.hardMode", false);
+    c_bloodMoon = cfg::get_bool("world.bloodMoon", false);
+    c_eclipse = cfg::get_bool("world.eclipse", false);
+    c_rain = cfg::get_bool("world.rain", false);
+    c_sand = cfg::get_bool("world.sand", false);
+    c_wind = cfg::get_bool("world.wind", false);
+    c_day = cfg::get_bool("world.day", false);
+    c_night = cfg::get_bool("world.night", false);
+    c_freezeTime = cfg::get_bool("world.freeze", false);
+    v_itemId = cfg::get_int("item.id", 1);
+    v_itemCount = cfg::get_int("item.count", 99);
 }
 
 namespace {
