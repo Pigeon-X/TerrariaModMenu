@@ -384,22 +384,7 @@ void bounds(float* x, float* y, float* w, float* h) {
 }
 
 void draw() {
-    // C 档：状态持久化——每帧写进配置（仅在变化时标脏，落盘由 cfg::tick 节流）
-    {
-        static bool loaded = false;
-        if (!loaded) {
-            loaded = true;
-            g_ui_scale = cfg::get_float("ui.scale", 1.0f);
-            g_ball_pos.x = cfg::get_float("ui.ballX", 60.0f);
-            g_ball_pos.y = cfg::get_float("ui.ballY", 200.0f);
-            g_page = cfg::get_int("ui.page", 0);
-        }
-        cfg::set_float("ui.scale", g_ui_scale);
-        cfg::set_float("ui.ballX", g_ball_pos.x);
-        cfg::set_float("ui.ballY", g_ball_pos.y);
-        cfg::set_int("ui.page", g_page);
-        cfg::tick();
-    }
+    // C 档的配置持久化暂时停用（二分排查闪退）
     if (!visible()) {
         // ---- 收起状态：圆球 ----
         ImGui::SetNextWindowPos(g_ball_pos, ImGuiCond_Always);
@@ -467,10 +452,6 @@ void draw() {
         g_win_pos = ImGui::GetWindowPos();
         g_win_size = ImGui::GetWindowSize();
     }
-    cfg::set_float("ui.winX", g_win_pos.x);
-    cfg::set_float("ui.winY", g_win_pos.y);
-    cfg::set_float("ui.winW", g_win_size.x);
-    cfg::set_float("ui.winH", g_win_size.y);
     ImGui::End();
 }
 

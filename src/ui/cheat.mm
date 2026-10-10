@@ -160,29 +160,7 @@ bool active() {
 
 void tick() {
     if (!gReady && !init()) return;
-    // 每帧把状态写进配置（cfg::set 只在值变化时标脏，落盘由 cfg::tick 节流）
-    cfg::set_bool("cheat.god", c_god);
-    cfg::set_bool("cheat.infMana", c_infMana);
-    cfg::set_bool("cheat.noFall", c_noFall);
-    cfg::set_bool("cheat.water", c_water);
-    cfg::set_bool("cheat.lava", c_lava);
-    cfg::set_bool("cheat.invis", c_invis);
-    cfg::set_bool("cheat.defense", c_defense);
-    cfg::set_bool("cheat.speed", c_speed);
-    cfg::set_float("cheat.speedVal", v_speed);
-    cfg::set_bool("cheat.fly", c_fly);
-    cfg::set_bool("world.hardMode", c_hardMode);
-    cfg::set_bool("world.bloodMoon", c_bloodMoon);
-    cfg::set_bool("world.eclipse", c_eclipse);
-    cfg::set_bool("world.rain", c_rain);
-    cfg::set_bool("world.sand", c_sand);
-    cfg::set_bool("world.wind", c_wind);
-    cfg::set_bool("world.day", c_day);
-    cfg::set_bool("world.night", c_night);
-    cfg::set_bool("world.freeze", c_freezeTime);
-    cfg::set_int("item.id", v_itemId);
-    cfg::set_int("item.count", v_itemCount);
-
+    // C 档的配置写入暂时停用（二分排查闪退）
     if (!active()) return;
     il2::Object* p = me();
     if (!p) return;
@@ -221,6 +199,7 @@ void tick() {
 }
 
 void load_state() {
+    return;   // C 档暂时停用（二分排查闪退）
     c_god = cfg::get_bool("cheat.god", false);
     c_infMana = cfg::get_bool("cheat.infMana", false);
     c_noFall = cfg::get_bool("cheat.noFall", false);

@@ -146,13 +146,8 @@ static void modmenu_entry() {
         return;
     }
 
-    cfg::load();          // 先读配置（界面和修改器开关都靠它恢复）
-    cheat::load_state();
-
-    // 日志变大改用零风险的做法：每次启动把日志清空重写。
-    // （之前试过"写到 512KB 就轮转"，那段涉及 fclose+rename+fopen，
-    //   而日志在启动阶段被高频调用，反而引入了闪退风险，已撤掉。）
-    if (FILE* lf = fopen(mm::log_path().c_str(), "w")) fclose(lf);
+    // 注意：这里暂时不调用 cfg::load() / cheat::load_state()（C 档）
+    // 正在二分排查闪退，配置持久化的运行时调用先摘掉。
 
     // 用 dyld 回调第一时间发现 UnityFramework（比单纯轮询更可靠）
     _dyld_register_func_for_add_image(image_added);
