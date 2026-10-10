@@ -221,7 +221,7 @@ void draw() {
 
     // 自绘标题行：左边标题（按住可拖动窗口），右边贴角的小「×」
     {
-        const float bs = ImGui::GetFrameHeight() * 1.4f;   // 大一点，手机上更好按
+        const float bs = ImGui::GetFrameHeight() * 0.85f;  // 小一点，别抢功能区的视线
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Terraria ModMenu");
         if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
