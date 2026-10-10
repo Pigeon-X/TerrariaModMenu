@@ -4,7 +4,7 @@ Cloning into 'third_party/imgui'...
 ==> 拉取 Lua 5.4.7
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  8  365k    8 32471    0     0  50565      0  0:00:07 --:--:--  0:00:07 50499100  365k  100  365k    0     0   331k      0  0:00:01  0:00:01 --:--:--  331k
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  365k  100  365k    0     0   305k      0  0:00:01  0:00:01 --:--:--  305k
 ==> 完成
 
 ===== [2/2] make generic =====
@@ -30,7 +30,7 @@ third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence 
 2 warnings generated.
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/il2cpp_api.mm -o build/src/il2cpp_api.mm.o
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/platform/imgui_host.mm -o build/src/platform/imgui_host.mm.o
-In file included from src/platform/imgui_host.mm:17:
+In file included from src/platform/imgui_host.mm:25:
 third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
  2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
       |                                           ^
@@ -45,7 +45,13 @@ third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence 
  2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
       |                                                            ^
       |                                                            (void*)
-2 warnings generated.
+src/platform/imgui_host.mm:102:59: warning: 'windows' is deprecated: first deprecated in iOS 15.0 - Use UIWindowScene.windows on a relevant window scene instead [-Wdeprecated-declarations]
+  102 |     for (UIWindow* w in [UIApplication sharedApplication].windows) {
+      |                                                           ^
+/Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:109:62: note: 'windows' has been explicitly marked deprecated here
+  109 | @property(nonatomic,readonly) NSArray<__kindof UIWindow *>  *windows API_DEPRECATED("Use UIWindowScene.windows on a relevant window scene instead", ios(2.0, 15.0), visionos(1.0, 1.0)) API_UNAVAILABLE(watchos);
+      |                                                              ^
+3 warnings generated.
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/lua/lua_api.mm -o build/src/lua/lua_api.mm.o
 In file included from src/lua/lua_api.mm:22:
 third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
@@ -62,7 +68,10 @@ third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence 
  2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
       |                                                            ^
       |                                                            (void*)
-2 warnings generated.
+src/lua/lua_api.mm:440:11: warning: unused variable 'lm' [-Wunused-variable]
+  440 |     auto* lm = static_cast<LuaMethod*>(luaL_checkudata(L, 1, MT_METHOD));
+      |           ^~
+3 warnings generated.
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/mods/mod_loader.mm -o build/src/mods/mod_loader.mm.o
 /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/imgui/imgui_demo.cpp -o build/third_party/imgui/imgui_demo.cpp.o
 In file included from third_party/imgui/imgui_demo.cpp:102:
