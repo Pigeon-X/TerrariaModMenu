@@ -90,6 +90,15 @@ IL2_WRAP(uint32_t, method_get_flags, "il2cpp_method_get_flags",
          (Method* m, uint32_t* iflags), (m, iflags))
 IL2_WRAP(Object*, runtime_invoke, "il2cpp_runtime_invoke",
          (Method* m, void* obj, void** params, void** exc), (m, obj, params, exc))
+IL2_WRAP(Type*, method_get_param, "il2cpp_method_get_param",
+         (Method* m, uint32_t index), (m, index))
+
+// 类型信息（参数封送要用）
+IL2_WRAP(int, type_get_type, "il2cpp_type_get_type", (Type* t), (t))
+IL2_WRAP(const char*, type_get_name, "il2cpp_type_get_name", (Type* t), (t))
+IL2_WRAP(Class*, class_get_element_class, "il2cpp_class_get_element_class", (Class* k), (k))
+IL2_WRAP(uint32_t, class_value_size, "il2cpp_class_value_size",
+         (Class* k, uint32_t* align), (k, align))
 
 // 字段
 IL2_WRAP(Field*, class_get_field_from_name, "il2cpp_class_get_field_from_name",
@@ -106,6 +115,15 @@ IL2_WRAP(void, field_static_get_value, "il2cpp_field_static_get_value",
          (Field* f, void* out), (f, out))
 IL2_WRAP(void, field_static_set_value, "il2cpp_field_static_set_value",
          (Field* f, void* in), (f, in))
+IL2_WRAP(uint32_t, field_get_flags, "il2cpp_field_get_flags", (Field* f), (f))
+
+// 遍历
+IL2_WRAP(Field*, class_get_fields, "il2cpp_class_get_fields",
+         (Class* k, void** iter), (k, iter))
+IL2_WRAP(Method*, class_get_methods, "il2cpp_class_get_methods",
+         (Class* k, void** iter), (k, iter))
+IL2_WRAP(Property*, class_get_properties, "il2cpp_class_get_properties",
+         (Class* k, void** iter), (k, iter))
 
 // 属性
 IL2_WRAP(Property*, class_get_property_from_name, "il2cpp_class_get_property_from_name",
@@ -122,6 +140,12 @@ IL2_WRAP(String*, string_new, "il2cpp_string_new", (const char* s), (s))
 IL2_WRAP(Array*, array_new, "il2cpp_array_new", (Class* k, size_t n), (k, n))
 IL2_WRAP(uint32_t, array_length, "il2cpp_array_length", (Array* a), (a))
 IL2_WRAP(void*, object_unbox, "il2cpp_object_unbox", (Object* o), (o))
+IL2_WRAP(void*, thread_current, "il2cpp_thread_current", (), ())
+
+// GC 句柄：跨帧持有托管对象必须靠它，否则会被 GC 回收
+IL2_WRAP(uint32_t, gchandle_new, "il2cpp_gchandle_new", (Object* o, bool pinned), (o, pinned))
+IL2_WRAP(Object*, gchandle_get_target, "il2cpp_gchandle_get_target", (uint32_t h), (h))
+IL2_WRAP(void, gchandle_free, "il2cpp_gchandle_free", (uint32_t h), (h))
 
 #undef IL2_WRAP
 

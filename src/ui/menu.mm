@@ -13,6 +13,7 @@
 
 #include "../il2cpp_api.hpp"
 #include "../mm_log.hpp"
+#include "../mods/mod_loader.hpp"
 
 namespace ui {
 namespace {
@@ -54,6 +55,36 @@ void draw_status_tab() {
     ImGui::Separator();
     ImGui::TextWrapped("Mods 目录：Documents/Mods/");
     ImGui::TextWrapped("日志文件：Documents/TerrariaModMenu.log");
+}
+
+void draw_mods_tab() {
+    const auto& list = mods::list();
+    ImGui::Text("Mods 目录：%s", mods::root_dir().c_str());
+    if (ImGui::Button("重新扫描")) mods::reload();
+    ImGui::Separator();
+
+    if (list.empty()) {
+        ImGui::TextWrapped(
+            "还没有 Mod。\n"
+            "往 Documents/Mods/<任意名字>/ 里放 main.lua（可选 mod.json），"
+            "然后点上面的「重新扫描」，或者重启游戏。");
+        return;
+    }
+
+    for (const auto& m : list) {
+        ImGui::PushID(m.name.c_str());
+        if (m.loaded) ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "● %s", m.name.c_str());
+        else ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "● %s", m.name.c_str());
+        ImGui::SameLine();
+        if (!m.version.empty()) { ImGui::TextDisabled("v%s", m.version.c_str()); ImGui::SameLine(); }
+        if (!m.author.empty()) ImGui::TextDisabled("by %s", m.author.c_str());
+
+        if (!m.description.empty()) ImGui::TextWrapped("   %s", m.description.c_str());
+        if (!m.loaded && !m.error.empty()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "   加载失败：%s", m.error.c_str());
+        }
+        ImGui::PopID();
+    }
 }
 
 }  // namespace
@@ -130,6 +161,10 @@ void draw() {
         }
         if (ImGui::BeginTabItem("状态")) {
             draw_status_tab();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Mods")) {
+            draw_mods_tab();
             ImGui::EndTabItem();
         }
 

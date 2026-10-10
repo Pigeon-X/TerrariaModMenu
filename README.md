@@ -24,9 +24,47 @@
 |---|---|---|
 | 1 | 工程骨架、构建链、CI、注入脚本、IL2CPP 按名解析、日志 | 已完成 |
 | 2 | Metal 渲染钩子 + ImGui 界面 + 触摸输入 + 悬浮窗 | 已完成（待编译验证） |
-| 3 | Lua 宿主 + Mod 加载器（mod.json / main.lua / onLoad/onUpdate/onUnload） | 待做 |
-| 4 | Lua API 全量对齐（Native/UI/Runtime/Texture/Net/Trp/Zip/Audio） | 待做 |
+| 3 | Lua 宿主 + Mod 加载器（mod.json / main.lua / onLoad/onUpdate/onUnload） | 已完成 |
+| 4 | Lua API 补齐（Texture / Net / Trp / Zip / Audio、Native.Hook、UI 全控件） | 待做 |
 | 5 | 专用版偏移表（iOS 1.4.5.8.1） | 待做 |
+
+## 写一个 Mod
+
+在 App 沙盒的 `Documents/Mods/<任意名字>/` 里放两个文件：
+
+```
+Documents/Mods/我的Mod/
+  mod.json     （可选）
+  main.lua     （必须）
+```
+
+`mod.json`（只支持扁平结构）：
+
+```json
+{ "name": "我的Mod", "version": "1.0", "author": "你", "description": "说明", "entry": "main.lua", "enabled": true }
+```
+
+`main.lua` 三个生命周期回调：
+
+```lua
+function onLoad()   end   -- 加载一次（只解析，别碰游戏对象）
+function onUpdate() end   -- 每帧
+function onUnload() end   -- 卸载前
+```
+
+现在可用的全局：`Log / print`、`require`（从 Mod 目录加载，带缓存）、`MOD_DIR`、`LUA_VERSION`。
+
+| 表 | 已实现 |
+|---|---|
+| `Runtime` | `Spawn` / `Wait` / `Yield` / `Now` / `Log` / `Breadcrumb` / `IsMainThread` |
+| `UI` | `Text` / `TextColored` / `Button` / `Checkbox` / `Toggle` / `SliderInt` / `SliderFloat` / `Separator` / `SameLine` / `Spacing` / `BulletText` / `SetTooltip` |
+| `Native` | `Class`（按名反射）、`UI`（注册面板）、`Log`；类上有 `method` / `field` / `new` / `parent` / `name` / `fullName`；方法可 `m(obj, ...)` 或 `m:invoke(obj, ...)`；字段 `f:get(obj)` / `f:set(obj, v)` |
+
+参数按 **IL2CPP 类型信息**封送（int/float/bool/string/对象），托管字符串与对象都挂了 GC 句柄，
+不会被中途回收。示例见 [examples/示例Mod](examples/示例Mod)。
+
+> 还没做：`Native.Hook`（需要内联 hook 引擎）、`Texture` / `Net` / `Trp` / `Zip` / `Audio`、
+> UI 的高级控件（表格 / 树 / 折叠头 / 输入框 / 下拉）。
 
 > ⚠️ 代码是在无法本机编译的环境里写的，**首次在 macOS / CI 上编译大概率还要修几轮错误**。
 > 工作流已经配好，直接跑就能看到报错。

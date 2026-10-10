@@ -18,6 +18,7 @@
 #include "imgui_impl_metal.h"
 
 #include "../mm_log.hpp"
+#include "../mods/mod_loader.hpp"
 #include "../ui/menu.hpp"
 
 namespace host {
@@ -136,6 +137,7 @@ void render_ui(id<MTLCommandBuffer> cb, id<MTLDrawable> drawable) {
 
     ImGui_ImplMetal_NewFrame(rpd);
     ImGui::NewFrame();
+    mods::tick();          // Mod 的 onUpdate + 协程推进
     ui::draw();
     ImGui::Render();
 

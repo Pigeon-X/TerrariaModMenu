@@ -49,7 +49,10 @@ ifneq ($(wildcard third_party/imgui/imgui.cpp),)
 endif
 
 ifneq ($(wildcard third_party/lua/lua.h),)
-  CFLAGS  += -Ithird_party/lua -DLUA_USE_IOS -DLUA_USE_POSIX
+  # 注意：C++ 那边（lua_api.cpp / mod_loader.cpp）也要能找到 lua.h，
+  # 所以 CFLAGS 和 CXXFLAGS 都得加
+  CFLAGS    += -Ithird_party/lua -DLUA_USE_IOS -DLUA_USE_POSIX
+  CXXFLAGS  += -Ithird_party/lua -DLUA_USE_IOS -DLUA_USE_POSIX
   SRC_C   += $(filter-out third_party/lua/lua.c third_party/lua/luac.c, \
               $(wildcard third_party/lua/*.c))
 endif

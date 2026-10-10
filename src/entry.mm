@@ -8,6 +8,7 @@
 
 #include "il2cpp_api.hpp"
 #include "mm_log.hpp"
+#include "mods/mod_loader.hpp"
 #include "platform/imgui_host.hpp"
 #include "ui/menu.hpp"
 
@@ -119,8 +120,9 @@ static void modmenu_entry() {
             } else {
                 mm::logf("界面启动失败，详见上面的日志");
             }
-        });
 
-        // TODO(阶段 3)：启动 Lua 宿主与 Mod 加载器
+            // 阶段 3：扫描并加载 Mod（需要 IL2CPP 已就绪）
+            mods::reload();
+        });
     });
 }

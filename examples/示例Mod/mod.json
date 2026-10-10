@@ -1,0 +1,8 @@
+{
+  "name": "示例Mod",
+  "version": "1.0",
+  "author": "你自己的名字",
+  "description": "验证 Mod 加载器 / Native 反射 / UI 面板 / 协程",
+  "entry": "main.lua",
+  "enabled": true
+}
