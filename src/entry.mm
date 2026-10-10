@@ -17,6 +17,24 @@
 
 namespace {
 
+// 只让「最先加载的那一份」干活。
+// 自签注入工具经常会把 dylib 再加一份，导致包里叠了好几个副本 ->
+// 多个叠加层 + 多个显示链接 -> 帧率直接崩掉。
+bool am_i_first_instance() {
+    Dl_info me;
+    if (!dladdr(reinterpret_cast<const void*>(&am_i_first_instance), &me) || !me.dli_fbase) {
+        return true;
+    }
+    uint32_t count = _dyld_image_count();
+    for (uint32_t i = 0; i < count; ++i) {
+        const char* name = _dyld_get_image_name(i);
+        if (!name || !strstr(name, "TerrariaModMenu")) continue;
+        // 遇到的第一个匹配就是最先加载的：是我 -> 干活；不是我 -> 让位
+        return reinterpret_cast<const void*>(_dyld_get_image_header(i)) == me.dli_fbase;
+    }
+    return true;
+}
+
 // 每当 dyld 加载一个新镜像都会被叫到；用它来第一时间发现 UnityFramework
 void image_added(const mach_header* mh, intptr_t slide) {
     Dl_info info;
@@ -120,6 +138,11 @@ static void modmenu_entry() {
     mm::set_sink([](const std::string& line) { ui::log_line(line); });
 
     mm::logf("==== TerrariaModMenu 载入 (built %s %s) ====", __DATE__, __TIME__);
+
+    if (!am_i_first_instance()) {
+        mm::logf("包里检测到多个 ModMenu 副本，这一份让位（只让最先加载的那份干活）");
+        return;
+    }
 
     // 用 dyld 回调第一时间发现 UnityFramework（比单纯轮询更可靠）
     _dyld_register_func_for_add_image(image_added);

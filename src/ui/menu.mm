@@ -141,12 +141,6 @@ void set_ball_texture(void* tex) {
 void draw() {
 #ifndef MODMENU_PREVIEW
     // 崩溃排查用：逐段打日志（日志每行都落盘，崩前最后一行就是出事的地方）
-    static int trace = 0;
-    if (trace < 6) {
-        mm::logf("UI跟踪[%d] draw 开始：visible=%d 球纹理=%p", trace,
-                 (int)visible(), g_ball_tex);
-        ++trace;
-    }
 #endif
     if (!visible()) {
         // ---- 收起状态：一个圆球，点一下展开，按住可以拖 ----
@@ -159,11 +153,6 @@ void draw() {
                      ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
 #ifndef MODMENU_PREVIEW
-        static int trace_ball = 0;
-        if (trace_ball < 6) {
-            mm::logf("UI跟踪[%d] 进入球分支：纹理=%p", trace_ball, g_ball_tex);
-            ++trace_ball;
-        }
 #endif
 
         if (g_ball_tex) {
@@ -204,7 +193,6 @@ void draw() {
         ImGui::End();
         ImGui::PopStyleVar();
 #ifndef MODMENU_PREVIEW
-        if (trace_ball <= 6) mm::logf("UI跟踪：球分支画完");
 #endif
         return;
     }
