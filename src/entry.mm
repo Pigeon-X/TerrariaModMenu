@@ -127,6 +127,7 @@ static void modmenu_entry() {
     prepare_mods_dir();
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+        mm::logf("诊断：后台等待线程已启动");
         if (!wait_for_il2cpp()) {
             mm::logf("等待 IL2CPP 超时：UnityFramework 没加载，或符号表被剥离");
             mm::logf("诊断：%s", il2::images_report().c_str());
