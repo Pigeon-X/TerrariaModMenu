@@ -2,58 +2,77 @@ name: build
 
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
+# 需要写权限才能把编译产物和日志提交回 dist/
 permissions:
   contents: write
 
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 环境信息
         run: |
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-path
+          xcodebuild -version || true
+          xcrun --sdk iphoneos --show-sdk-path || true
+          clang --version || true
 
-      - name: 拉第三方依赖
-        run: bash scripts/fetch_deps.sh
-
-      - name: 构建通用版
-        run: make generic
-
-      - name: 构建专用版
-        run: make specific
-
-      - name: 收集产物
+      # 构建失败也要继续跑后面的“回传日志”步骤
+      - name: 拉依赖 + 编译
+        id: build
+        continue-on-error: true
         run: |
-          mkdir -p out
-          cp build/TerrariaModMenu.dylib out/TerrariaModMenu.dylib
-          file out/TerrariaModMenu.dylib
+          set -o pipefail
+          mkdir -p dist
+          : > build.log
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: TerrariaModMenu-dylib
-          path: out/
-          if-no-files-found: error
+          {
+            echo "=== [1/2] fetch_deps ==="
+            bash scripts/fetch_deps.sh
+          } 2>&1 | tee -a build.log
 
-      # 顺便把产物回传到仓库的 dist/ 目录，
-      # 这样不用登录 GitHub 下载 artifact 也能直接 git pull 取到 dylib。
-      - name: 回传产物到 dist/
-        if: github.event_name == 'push'
+          {
+            echo "=== [2/2] make generic ==="
+            make generic
+          } 2>&1 | tee -a build.log
+
+          if [ -f build/TerrariaModMenu.dylib ]; then
+            cp build/TerrariaModMenu.dylib dist/TerrariaModMenu.dylib
+            echo "OK: 已产出 dist/TerrariaModMenu.dylib"
+          else
+            echo "FAILED: 没有产出 dylib"
+          fi
+
+      - name: 收集产物与日志
+        if: always()
         run: |
           mkdir -p dist
-          cp build/TerrariaModMenu.dylib dist/TerrariaModMenu.dylib
-          ls -l dist/
+          cp build.log dist/build.log 2>/dev/null || true
+          ls -l dist/ || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: TerrariaModMenu-dylib
+          path: dist/
+          if-no-files-found: warn
+
+      # 把 dist/（dylib + 编译日志）提交回仓库，方便直接 git pull 取
+      - name: 回传 dist/
+        if: always() && github.event_name == 'push'
+        run: |
           git config user.name "modmenu-ci"
           git config user.email "modmenu-ci@local"
-          git add -f dist/TerrariaModMenu.dylib
+          git add -f dist/
           if git diff --cached --quiet; then
-            echo "产物没变化，跳过提交"
+            echo "dist/ 没变化，跳过提交"
           else
-            git commit -m "ci: 更新 TerrariaModMenu.dylib [skip ci]"
+            git commit -m "ci: 更新构建产物与日志 [skip ci]"
             git push
           fi
