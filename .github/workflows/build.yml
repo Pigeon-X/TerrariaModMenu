@@ -95,5 +95,7 @@ jobs:
             echo "dist/ 没变化，跳过提交"
           else
             git commit -m "ci: 更新构建产物与日志 [skip ci]" || true
-            git push || echo "WARN: push 失败（多半是仓库的 Workflow permissions 是只读）"
+            # 两个 workflow 都会往 dist/ 提交，push 前先 rebase，否则会被抢推失败
+            git pull --rebase origin main || true
+            git push || (git pull --rebase origin main && git push)
           fi
