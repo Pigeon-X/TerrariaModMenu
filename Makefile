@@ -48,13 +48,14 @@ ifneq ($(wildcard third_party/imgui/imgui.cpp),)
               $(wildcard third_party/imgui/backends/imgui_impl_metal.mm)
 endif
 
-ifneq ($(wildcard third_party/lua/lua.h),)
-  # 注意：C++ 那边（lua_api.cpp / mod_loader.cpp）也要能找到 lua.h，
-  # 所以 CFLAGS 和 CXXFLAGS 都得加
-  CFLAGS    += -Ithird_party/lua -DLUA_USE_IOS -DLUA_USE_POSIX
-  CXXFLAGS  += -Ithird_party/lua -DLUA_USE_IOS -DLUA_USE_POSIX
-  SRC_C   += $(filter-out third_party/lua/lua.c third_party/lua/luac.c, \
-              $(wildcard third_party/lua/*.c))
+ifneq ($(wildcard third_party/lua/src/lua.h),)
+  # 注意：Lua 源码包里头文件和 .c 都在 src/ 子目录下，
+  # 而且 C++ 那边（lua_api.cpp / mod_loader.cpp）也要能找到 lua.h
+  LUA_DIR := third_party/lua/src
+  CFLAGS    += -I$(LUA_DIR) -DLUA_USE_IOS -DLUA_USE_POSIX
+  CXXFLAGS  += -I$(LUA_DIR) -DLUA_USE_IOS -DLUA_USE_POSIX
+  SRC_C   += $(filter-out $(LUA_DIR)/lua.c $(LUA_DIR)/luac.c, \
+              $(wildcard $(LUA_DIR)/*.c))
 endif
 
 # ---- 目标 ------------------------------------------------------------------
