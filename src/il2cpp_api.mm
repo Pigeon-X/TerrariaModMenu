@@ -169,6 +169,26 @@ const char* last_missing() {
     return g_last_missing.c_str();
 }
 
+std::string images_report() {
+    std::string out;
+    uint32_t count = _dyld_image_count();
+    out += "dyld 镜像共 " + std::to_string(count) + " 个";
+    if (g_image.found) {
+        out += "；UnityFramework = " + g_image.path;
+    } else {
+        out += "；没找到含 'UnityFramework' 的镜像。前几个镜像是：";
+        for (uint32_t i = 0; i < count && i < 12; ++i) {
+            const char* n = _dyld_get_image_name(i);
+            if (!n) continue;
+            const char* slash = strrchr(n, '/');
+            out += " [";
+            out += slash ? slash + 1 : n;
+            out += "]";
+        }
+    }
+    return out;
+}
+
 void* api(const char* name) {
     if (!name) return nullptr;
     if (!ready()) {

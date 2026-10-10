@@ -39,6 +39,9 @@ void* api(const char* name);
 // 诊断：已解析到的符号数量
 int symbol_count();
 
+// 诊断：已加载镜像的简报（排查“找不到 UnityFramework”用）
+std::string images_report();
+
 // 取“按名字解析失败的符号”列表（便于排查）
 const char* last_missing();
 

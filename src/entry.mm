@@ -4,6 +4,9 @@
 //
 #include <unistd.h>
 
+#include <mach-o/dyld.h>
+#include <dlfcn.h>
+
 #import <Foundation/Foundation.h>
 
 #include "il2cpp_api.hpp"
@@ -14,10 +17,24 @@
 
 namespace {
 
-// 等 UnityFramework 加载并完成 il2cpp 初始化。最多等 ~60 秒。
+// 每当 dyld 加载一个新镜像都会被叫到；用它来第一时间发现 UnityFramework
+void image_added(const mach_header* mh, intptr_t slide) {
+    Dl_info info;
+    if (dladdr(reinterpret_cast<const void*>(mh), &info) && info.dli_fname) {
+        if (strstr(info.dli_fname, "UnityFramework")) {
+            mm::logf("诊断：UnityFramework 镜像已加载 -> %s", info.dli_fname);
+        }
+    }
+}
+
+// 等 UnityFramework 加载并完成 il2cpp 初始化。最多等 30 秒，期间每 3 秒报一次进度。
 bool wait_for_il2cpp() {
-    for (int i = 0; i < 600; ++i) {
+    mm::logf("诊断：开始等待 IL2CPP（当前 dyld 镜像 %u 个）", _dyld_image_count());
+    for (int i = 0; i < 300; ++i) {
         if (il2::init()) return true;
+        if ((i + 1) % 30 == 0) {
+            mm::logf("诊断：已等待 %d 秒，dyld 镜像 %u 个", (i + 1) / 10, _dyld_image_count());
+        }
         usleep(100 * 1000);
     }
     return false;
@@ -103,11 +120,16 @@ static void modmenu_entry() {
     mm::set_sink([](const std::string& line) { ui::log_line(line); });
 
     mm::logf("==== TerrariaModMenu 载入 (built %s %s) ====", __DATE__, __TIME__);
+
+    // 用 dyld 回调第一时间发现 UnityFramework（比单纯轮询更可靠）
+    _dyld_register_func_for_add_image(image_added);
+
     prepare_mods_dir();
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
         if (!wait_for_il2cpp()) {
             mm::logf("等待 IL2CPP 超时：UnityFramework 没加载，或符号表被剥离");
+            mm::logf("诊断：%s", il2::images_report().c_str());
             return;
         }
         mm::logf("UnityFramework 就绪，符号数 = %d", il2::symbol_count());
