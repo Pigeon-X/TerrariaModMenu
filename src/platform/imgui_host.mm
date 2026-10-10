@@ -40,6 +40,8 @@ bool g_imgui_ready = false;
 double g_last_time = 0;
 std::atomic<int> g_render_count{0};
 float g_font_px = 48.0f;      // 实际字号（像素），按屏幕缩放算出来
+double g_last_present = 0;
+constexpr double kIdleInterval = 0.20;   // 空闲时最多 5 帧/秒
 
 CAMetalLayer* g_layer = nil;
 id<MTLCommandQueue> g_queue = nil;
@@ -276,6 +278,14 @@ bool setup_overlay() {
 void render_overlay() {
     if (!g_layer || !g_queue) return;
     @autoreleasepool {
+        // ------------------------------------------------------------------
+        // 按需渲染：菜单收起、也没在触摸时，降到 5 帧/秒的心跳。
+        // 叠加层是全屏的，每帧清理+绘制会明显吃掉游戏帧率，这一步很关键。
+        // ------------------------------------------------------------------
+        const double t_now = CACurrentMediaTime();
+        const bool interacting = ui::visible() || g_touching.load();
+        if (!interacting && (t_now - g_last_present) < kIdleInterval) return;
+
         // 旋转/尺寸变化时同步
         CGSize bounds = g_window.bounds.size;
         if (bounds.width > 0 && !CGSizeEqualToSize(g_layer.frame.size, bounds)) {
@@ -324,6 +334,7 @@ void render_overlay() {
                      (int)drawable.texture.width, (int)drawable.texture.height,
                      (unsigned long)drawable.texture.pixelFormat);
         }
+        g_last_present = t_now;
     }
 }
 
@@ -334,6 +345,8 @@ void (*g_orig_send_event)(id, SEL, UIEvent*) = nullptr;
 
 void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
     BOOL swallow = NO;
+    // 一有触摸就立刻恢复满帧渲染（否则拖球会卡）
+    if (event && [event allTouches].count) g_last_present = 0;
     // 注意：这里不能判断 ui::visible()！
     // 球（收起）状态下也必须把触摸喂给 ImGui，否则球点不开、也拖不动。
     if (event) {
