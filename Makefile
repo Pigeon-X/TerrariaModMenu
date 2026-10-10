@@ -60,9 +60,11 @@ ifneq ($(wildcard third_party/lua/src/lua.h),)
 endif
 
 # ---- 目标 ------------------------------------------------------------------
-# C 文件单独放一个目录，避免和 C++ 的 %.o 规则打架（clang++ 会把 .c 当 C++ 编）
+# C 文件用独立后缀 .lo：
+#   · 避免和 C++ 的 %.o 规则打架（clang++ 会把 .c 当 C++ 编）
+#   · 避免 build/c/xxx.o 同时被 $(BUILD)/%.o 和 $(BUILD)/c/%.o 两条模式规则匹配
 OBJ_CPP := $(patsubst %,$(BUILD)/%.o,$(SRC_CPP))
-OBJ_C   := $(patsubst %,$(BUILD)/c/%.o,$(SRC_C))
+OBJ_C   := $(patsubst %.c,$(BUILD)/c/%.lo,$(SRC_C))
 OBJ     := $(OBJ_CPP) $(OBJ_C)
 
 .PHONY: all generic specific clean
@@ -84,7 +86,7 @@ $(BUILD)/%.o: %
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BUILD)/c/%.o: %.c
+$(BUILD)/c/%.lo: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
