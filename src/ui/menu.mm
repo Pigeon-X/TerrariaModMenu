@@ -22,6 +22,7 @@ std::mutex g_mutex;
 bool g_visible = true;
 void* g_ball_tex = nullptr;
 ImVec2 g_ball_pos(60, 200);          // 球的位置（可拖动）
+ImVec2 g_ball_drag(0, 0);            // 本次按住累计移动量（用来区分"点"和"拖"）
 constexpr float kBallSize = 108.0f;  // 球的显示尺寸（像素）
 std::deque<std::string> g_log;
 std::vector<std::pair<std::string, PanelFn>> g_panels;
@@ -143,27 +144,36 @@ void draw() {
                      ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
 
-        bool clicked = false;
         if (g_ball_tex) {
-            clicked = ImGui::ImageButton("##ball", (ImTextureID)g_ball_tex,
-                                         ImVec2(kBallSize, kBallSize),
-                                         ImVec2(0, 0), ImVec2(1, 1),
-                                         ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1));
+            ImGui::ImageButton("##ball", (ImTextureID)g_ball_tex,
+                               ImVec2(kBallSize, kBallSize),
+                               ImVec2(0, 0), ImVec2(1, 1),
+                               ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1));
         } else {
-            clicked = ImGui::Button("M", ImVec2(kBallSize, kBallSize));
+            ImGui::Button("M", ImVec2(kBallSize, kBallSize));
         }
-        // 拖动球体（把鼠标位移累加到位置）
+
+        // 关键：区分"点一下"和"拖一下"。
+        // 原来在按下时就展开，导致一拖就弹窗；现在改成**松手时且几乎没移动**才算点击。
+        if (ImGui::IsItemActivated()) {
+            g_ball_drag = ImVec2(0, 0);
+        }
         if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
             ImVec2 d = ImGui::GetIO().MouseDelta;
             g_ball_pos.x += d.x;
             g_ball_pos.y += d.y;
+            g_ball_drag.x += fabsf(d.x);
+            g_ball_drag.y += fabsf(d.y);
             ImVec2 disp = ImGui::GetIO().DisplaySize;
             if (g_ball_pos.x < 0) g_ball_pos.x = 0;
             if (g_ball_pos.y < 0) g_ball_pos.y = 0;
             if (g_ball_pos.x > disp.x - kBallSize) g_ball_pos.x = disp.x - kBallSize;
             if (g_ball_pos.y > disp.y - kBallSize) g_ball_pos.y = disp.y - kBallSize;
         }
-        if (clicked) set_visible(true);
+        // 松手了，而且几乎没拖动 -> 才算"点击"
+        if (ImGui::IsItemDeactivated() && g_ball_drag.x < 16.0f && g_ball_drag.y < 16.0f) {
+            set_visible(true);
+        }
 
         ImGui::End();
         ImGui::PopStyleVar();
@@ -174,34 +184,24 @@ void draw() {
     ImGui::SetNextWindowPos(ImVec2(60, 140), ImGuiCond_FirstUseEver);
     // 可缩放：给个下限，避免拖没了
     ImGui::SetNextWindowSizeConstraints(ImVec2(560, 380), ImVec2(FLT_MAX, FLT_MAX));
-    if (!ImGui::Begin("Terraria ModMenu", nullptr,
-                      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar)) {
+    if (!ImGui::Begin("Terraria ModMenu", nullptr, ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
         return;
     }
 
-    if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("菜单")) {
-            if (ImGui::MenuItem("收起成球")) set_visible(false);
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenuBar();
-    }
-
-    // 内容区右上角放一个醒目的「收起」按钮（不依赖菜单栏，保证看得见）
+    // 只占一行高度的小「×」，右对齐贴在右上角，其余空间全留给功能区
     {
-        const float bs = ImGui::GetFontSize() * 2.2f;
-        const float pad = ImGui::GetStyle().WindowPadding.x;
-        float x = ImGui::GetWindowWidth() - pad - bs * 1.9f;
+        const float bs = ImGui::GetFrameHeight();
+        const float x = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - bs;
         if (x > ImGui::GetCursorPosX()) {
             ImGui::SetCursorPosX(x);
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.72f, 0.16f, 0.18f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.62f, 0.16f, 0.18f, 0.90f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.92f, 0.26f, 0.28f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.60f, 0.12f, 0.14f, 1.0f));
-            if (ImGui::Button("✕  收起成球", ImVec2(bs * 1.9f, bs))) set_visible(false);
+            if (ImGui::Button("×", ImVec2(bs, bs))) set_visible(false);
             ImGui::PopStyleColor(3);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("收起成悬浮球");
         }
-        ImGui::Separator();
     }
 
     if (ImGui::BeginTabBar("##tabs")) {
