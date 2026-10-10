@@ -1,14 +1,4 @@
 main.cpp
-preview\main.cpp(121): error C2440: 'initializing': cannot convert from 'const wchar_t [15]' to 'LPCSTR'
-preview\main.cpp(121): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or parenthesized function-style cast
-preview\main.cpp(123): error C2664: 'HWND CreateWindowExA(DWORD,LPCSTR,LPCSTR,DWORD,int,int,int,int,HWND,HMENU,HINSTANCE,LPVOID)': cannot convert argument 3 from 'const wchar_t [37]' to 'LPCSTR'
-preview\main.cpp(123): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or parenthesized function-style cast
-C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\winuser.h(4425): note: see declaration of 'CreateWindowExA'
-preview\main.cpp(123): note: while trying to match the argument list '(long, LPCSTR, const wchar_t [37], long, int, int, int, int, nullptr, nullptr, HINSTANCE, nullptr)'
-preview\main.cpp(126): error C2664: 'int MessageBoxA(HWND,LPCSTR,LPCSTR,UINT)': cannot convert argument 2 from 'const wchar_t [22]' to 'LPCSTR'
-preview\main.cpp(126): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or parenthesized function-style cast
-C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\winuser.h(9229): note: see declaration of 'MessageBoxA'
-preview\main.cpp(126): note: while trying to match the argument list '(nullptr, const wchar_t [22], const wchar_t [7], long)'
 menu.mm
 imgui.cpp
 imgui_draw.cpp
