@@ -47,18 +47,17 @@ void swizzle(Class cls, SEL sel, IMP new_imp, T* out_old) {
 }
 
 // 找实现了 presentDrawable: 的 Metal 命令缓冲类。
-// 不写死类名（不同 iOS 版本驱动类名不一样），扫一遍运行时。
+// 不写死类名（不同 iOS 版本驱动类名不一样）：自己造一个命令缓冲，
+// 直接问它属于哪个类 —— 比扫全运行时更稳，也没有 ARC 所有权问题。
 Class find_command_buffer_class() {
-    int count = objc_getClassList(nullptr, 0);
-    if (count <= 0) return Nil;
-    std::vector<Class> classes(static_cast<size_t>(count));
-    objc_getClassList(classes.data(), count);
-    for (Class c : classes) {
-        const char* name = class_getName(c);
-        if (!name || !strstr(name, "CommandBuffer")) continue;
-        if (class_getInstanceMethod(c, @selector(presentDrawable:))) return c;
-    }
-    return Nil;
+    id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
+    if (!dev) return Nil;
+    id<MTLCommandQueue> queue = [dev newCommandQueue];
+    if (!queue) return Nil;
+    id<MTLCommandBuffer> probe = [queue commandBuffer];
+    if (!probe) return Nil;
+    Class cls = object_getClass(probe);
+    return class_getInstanceMethod(cls, @selector(presentDrawable:)) ? cls : Nil;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,7 +151,7 @@ void (*g_orig_present)(id, SEL, id<MTLDrawable>) = nullptr;
 
 void mm_present_drawable(id self, SEL _cmd, id<MTLDrawable> drawable) {
     @autoreleasepool {
-        render_ui((__bridge id<MTLCommandBuffer>)self, drawable);
+        render_ui((id<MTLCommandBuffer>)self, drawable);
     }
     if (g_orig_present) g_orig_present(self, _cmd, drawable);
 }
