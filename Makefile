@@ -52,8 +52,9 @@ ifneq ($(wildcard third_party/lua/src/lua.h),)
   # 注意：Lua 源码包里头文件和 .c 都在 src/ 子目录下，
   # 而且 C++ 那边（lua_api.cpp / mod_loader.cpp）也要能找到 lua.h
   LUA_DIR := third_party/lua/src
-  CFLAGS    += -I$(LUA_DIR) -DLUA_USE_IOS -DLUA_USE_POSIX
-  CXXFLAGS  += -I$(LUA_DIR) -DLUA_USE_IOS -DLUA_USE_POSIX
+  # LUA_USE_IOS 内部已经会定义 LUA_USE_POSIX，别再重复定义（会告警）
+  CFLAGS    += -I$(LUA_DIR) -DLUA_USE_IOS
+  CXXFLAGS  += -I$(LUA_DIR) -DLUA_USE_IOS
   SRC_C   += $(filter-out $(LUA_DIR)/lua.c $(LUA_DIR)/luac.c, \
               $(wildcard $(LUA_DIR)/*.c))
 endif
