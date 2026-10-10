@@ -436,26 +436,6 @@ bool ready() { return g_imgui_ready; }
 bool start() {
     if (g_started.exchange(true)) return true;
 
-    // D 档：渲染层也做一次多副本防护。
-    // entry.mm 已经挡过一次，但万一某个副本的构造函数被跳过，
-    // 也不能让两个叠加层同时挂上来（那是帧率暴跌的直接原因）。
-    {
-        Dl_info me;
-        if (dladdr(reinterpret_cast<const void*>(&start), &me) && me.dli_fbase) {
-            uint32_t count = _dyld_image_count();
-            for (uint32_t i = 0; i < count; ++i) {
-                const char* nm = _dyld_get_image_name(i);
-                if (!nm || !strstr(nm, "TerrariaModMenu")) continue;
-                if (reinterpret_cast<const void*>(_dyld_get_image_header(i)) != me.dli_fbase) {
-                    mm::logf("渲染层：检测到更早的副本，本副本不挂叠加层");
-                    g_started.store(false);
-                    return false;
-                }
-                break;
-            }
-        }
-    }
-
     // 安全开关：Documents/ModMenu_norender 存在时，只加载 dylib、不挂任何渲染，
     // 用来排查"是不是渲染层把游戏搞崩了"。
     @autoreleasepool {
