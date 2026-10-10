@@ -93,11 +93,12 @@ bool parse_symbols() {
     g_syms.reserve(symtab->nsyms * 2);
     for (uint32_t i = 0; i < symtab->nsyms; ++i) {
         const nlist_64& s = syms[i];
-        if (s.n_strx == 0 || s.n_value == 0) continue;
+        // macOS/iOS 的 nlist_64 把 n_strx 放在 union 里，必须写 n_un.n_strx
+        if (s.n_un.n_strx == 0 || s.n_value == 0) continue;
         // 只收本段内定义、且不是未定义/调试类的符号
         if ((s.n_type & N_TYPE) != N_SECT) continue;
 
-        const char* raw = strtab + s.n_strx;
+        const char* raw = strtab + s.n_un.n_strx;
         if (raw[0] == '\0') continue;
 
         // 去掉 Mach-O 的前导下划线：_il2cpp_class_from_name -> il2cpp_class_from_name
