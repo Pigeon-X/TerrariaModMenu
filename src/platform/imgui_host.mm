@@ -336,6 +336,7 @@ void render_overlay() {
         rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
 
         ImGui_ImplMetal_NewFrame(rpd);
+        ImGui::GetIO().FontGlobalScale = ui::ui_scale();   // 必须在 NewFrame 之前
         ImGui::NewFrame();
         mods::tick();
         cheat::tick();

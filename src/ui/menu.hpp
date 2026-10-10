@@ -19,6 +19,9 @@ void set_ball_texture(void* tex);
 // 当前 UI 实际占用的矩形（像素坐标）—— 渲染层只覆盖这一块，避免全屏开销
 void bounds(float* x, float* y, float* w, float* h);
 
+// 用户在「设置 → 界面」里调的整体缩放（渲染层在 NewFrame 之前应用）
+float ui_scale();
+
 // 往控制台日志里追加一行（线程安全）
 void log_line(const std::string& text);
 

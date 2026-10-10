@@ -81,6 +81,8 @@ bool begin_card(const char* id, const char* title, float w = 0.0f) {
     if (w <= 0) w = ImGui::GetContentRegionAvail().x;
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.08f, 0.18f, 0.90f));
     ImGui::BeginChild(id, ImVec2(w, 0), true);
+    // 这里 push 了两个颜色（ChildBg + Text），end_card 必须 pop 两个，
+    // 否则颜色栈不平衡 -> 整界面配色错乱
     ImGui::PushStyleColor(ImGuiCol_Text, kPurple);
     ImGui::TextUnformatted(title);
     ImGui::PopStyleColor();
@@ -119,9 +121,12 @@ void draw_sidebar(float w) {
             continue;
         }
         ImGui::Indent(14);
-        if (g_page == it.page) ImGui::PushStyleColor(ImGuiCol_Header, kPurpleD);
-        if (ImGui::Selectable(it.label, g_page == it.page)) g_page = it.page;
-        if (g_page == it.page) ImGui::PopStyleColor();
+        // 注意：先记住"选中状态"再判断，不能前后各判一次
+        // （Selectable 会改 g_page，导致 push/pop 数量不匹配）
+        const bool selected = (g_page == it.page);
+        if (selected) ImGui::PushStyleColor(ImGuiCol_Header, kPurpleD);
+        if (ImGui::Selectable(it.label, selected)) g_page = it.page;
+        if (selected) ImGui::PopStyleColor();
         ImGui::Unindent(14);
     }
     ImGui::EndChild();
@@ -354,6 +359,7 @@ void clear_panels(const std::string& name) {
     }
 }
 void set_ball_texture(void* tex) { std::lock_guard<std::mutex> lock(g_mutex); g_ball_tex = tex; }
+float ui_scale() { std::lock_guard<std::mutex> lock(g_mutex); return g_ui_scale; }
 
 void bounds(float* x, float* y, float* w, float* h) {
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -401,7 +407,8 @@ void draw() {
 
     // ---- 展开状态 ----
     apply_theme();
-    ImGui::GetIO().FontGlobalScale = g_ui_scale;
+    // FontGlobalScale 由渲染层在 NewFrame 之前应用（见 ui_scale()），
+    // 帧中途改会让"测量的文字尺寸"和"绘制的字号"不一致 -> 布局错位
     ImGui::SetNextWindowSize(ImVec2(980, 700), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(40, 120), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSizeConstraints(ImVec2(560, 380), ImVec2(FLT_MAX, FLT_MAX));
