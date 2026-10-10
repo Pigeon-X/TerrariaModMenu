@@ -16,6 +16,9 @@ void toggle();
 // 球形图标纹理（ImTextureID，由 imgui_host 创建后塞进来）
 void set_ball_texture(void* tex);
 
+// 当前 UI 实际占用的矩形（像素坐标）—— 渲染层只覆盖这一块，避免全屏开销
+void bounds(float* x, float* y, float* w, float* h);
+
 // 往控制台日志里追加一行（线程安全）
 void log_line(const std::string& text);
 

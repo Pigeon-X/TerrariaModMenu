@@ -31,6 +31,8 @@ ImVec2 g_ball_pos(60, 200);          // 球的位置（可拖动）
 ImVec2 g_ball_drag(0, 0);            // 本次按住累计移动量（用来区分"点"和"拖"）
 constexpr float kBallSize = 108.0f;  // 球的显示尺寸（像素）
 std::deque<std::string> g_log;
+ImVec2 g_win_pos(0, 0);
+ImVec2 g_win_size(0, 0);
 std::vector<std::pair<std::string, PanelFn>> g_panels;
 char g_filter[128] = "";
 bool g_auto_scroll = true;
@@ -136,6 +138,16 @@ void clear_panels(const std::string& name) {
 void set_ball_texture(void* tex) {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_ball_tex = tex;
+}
+
+void bounds(float* x, float* y, float* w, float* h) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_visible) {
+        *x = g_ball_pos.x; *y = g_ball_pos.y;
+        *w = kBallSize;    *h = kBallSize;
+        return;
+    }
+    *x = g_win_pos.x; *y = g_win_pos.y; *w = g_win_size.x; *h = g_win_size.y;
 }
 
 void draw() {
@@ -266,6 +278,13 @@ void draw() {
     }
 
     ImGui::End();
+
+    // 记下这一帧窗口实际占用的位置和大小，给渲染层缩范围用
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_win_pos = ImGui::GetWindowPos();
+        g_win_size = ImGui::GetWindowSize();
+    }
 }
 
 }  // namespace ui

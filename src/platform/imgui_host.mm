@@ -43,6 +43,16 @@ float g_font_px = 48.0f;      // 实际字号（像素），按屏幕缩放算�
 double g_last_present = 0;
 constexpr double kIdleInterval = 0.20;   // 空闲时最多 5 帧/秒
 
+// 叠加层只覆盖 UI 实际占用的矩形（避免全屏清理/绘制，这是性能关键）
+float g_rect_x = 0, g_rect_y = 0, g_rect_w = 0, g_rect_h = 0;
+
+void apply_layer_rect(float x, float y, float w, float h) {
+    g_rect_x = x; g_rect_y = y; g_rect_w = w; g_rect_h = h;
+    CGFloat s = g_scale > 0 ? g_scale : 1.0;
+    g_layer.frame = CGRectMake(x / s, y / s, w / s, h / s);
+    g_layer.drawableSize = CGSizeMake(w, h);
+}
+
 CAMetalLayer* g_layer = nil;
 id<MTLCommandQueue> g_queue = nil;
 UIWindow* g_window = nil;
@@ -259,9 +269,9 @@ bool setup_overlay() {
     g_layer.opaque = NO;
     g_layer.backgroundColor = [UIColor clearColor].CGColor;
     g_layer.contentsScale = g_scale;
-    g_layer.frame = g_window.bounds;
-    g_layer.drawableSize = CGSizeMake(g_window.bounds.size.width * g_scale,
-                                      g_window.bounds.size.height * g_scale);
+    // 先给个很小的初始尺寸；真正的范围由 apply_layer_rect 按 UI 实际占用来定
+    g_layer.frame = CGRectMake(0, 0, 64, 64);
+    g_layer.drawableSize = CGSizeMake(64, 64);
     g_layer.zPosition = 10000;              // 压在最上面
 
     [g_window.layer addSublayer:g_layer];
@@ -286,12 +296,39 @@ void render_overlay() {
         const bool interacting = ui::visible() || g_touching.load();
         if (!interacting && (t_now - g_last_present) < kIdleInterval) return;
 
-        // 旋转/尺寸变化时同步
-        CGSize bounds = g_window.bounds.size;
-        if (bounds.width > 0 && !CGSizeEqualToSize(g_layer.frame.size, bounds)) {
-            g_layer.frame = g_window.bounds;
-            g_layer.drawableSize = CGSizeMake(bounds.width * g_scale, bounds.height * g_scale);
-            mm::logf("叠加层尺寸更新 -> %.0fx%.0f", bounds.width, bounds.height);
+        // ---- 叠加层只覆盖 UI 实际占用的区域 --------------------------------
+        // 全屏 layer 每帧清理+绘制是性能杀手；缩到实际区域后开销从"一整屏"
+        // 变成"一小块"（球只要 108x108）。
+        {
+            float bx = 0, by = 0, bw = 0, bh = 0;
+            ui::bounds(&bx, &by, &bw, &bh);
+            const float margin = 16.0f;
+            const float grid = 64.0f;
+            float x0 = floorf((bx - margin) / grid) * grid;
+            float y0 = floorf((by - margin) / grid) * grid;
+            float x1 = ceilf((bx + bw + margin) / grid) * grid;
+            float y1 = ceilf((by + bh + margin) / grid) * grid;
+            CGSize scr = g_window.bounds.size;
+            float sw = (float)(scr.width * g_scale), sh = (float)(scr.height * g_scale);
+            if (x0 < 0) x0 = 0;
+            if (y0 < 0) y0 = 0;
+            if (x1 > sw) x1 = sw;
+            if (y1 > sh) y1 = sh;
+            if (x1 <= x0 || y1 <= y0) return;
+            float nw = x1 - x0, nh = y1 - y0;
+
+            // 交互中只增不减（避免拖动时每帧重建 drawable 反而更卡）；空闲时才收缩
+            bool changed = false;
+            if (g_rect_w <= 0) {
+                changed = true;
+            } else if (nw > g_rect_w + 1 || nh > g_rect_h + 1 ||
+                       x0 < g_rect_x - 1 || y0 < g_rect_y - 1 ||
+                       x0 + nw > g_rect_x + g_rect_w + 1 || y0 + nh > g_rect_y + g_rect_h + 1) {
+                changed = true;                       // 装不下了 -> 长大
+            } else if (!interacting && (g_rect_w > nw + 128 || g_rect_h > nh + 128)) {
+                changed = true;                       // 明显浪费 -> 空闲时收缩
+            }
+            if (changed) apply_layer_rect(x0, y0, nw, nh);
         }
 
         id<CAMetalDrawable> drawable = [g_layer nextDrawable];
@@ -301,6 +338,9 @@ void render_overlay() {
         if (!g_imgui_ready) return;
 
         ImGuiIO& io = ImGui::GetIO();
+        // 关键：告诉 ImGui "渲染目标的原点在哪、多大"，
+        // 这样界面仍然用屏幕绝对坐标，绘制却只落在这一小块 layer 上。
+        io.DisplayPos = ImVec2(g_rect_x, g_rect_y);
         io.DisplaySize = ImVec2((float)g_layer.drawableSize.width,
                                 (float)g_layer.drawableSize.height);
         double now = CACurrentMediaTime();
