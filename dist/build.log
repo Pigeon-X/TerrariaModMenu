@@ -4,7 +4,7 @@ Cloning into 'third_party/imgui'...
 ==> 拉取 Lua 5.4.7
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  365k  100  365k    0     0   502k      0 --:--:-- --:--:-- --:--:--  503k
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  365k  100  365k    0     0   394k      0 --:--:-- --:--:-- --:--:--  394k
 ==> 完成
 
 ===== [2/2] make generic =====
