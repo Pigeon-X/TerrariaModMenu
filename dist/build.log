@@ -4,7 +4,7 @@ Cloning into 'third_party/imgui'...
 ==> 拉取 Lua 5.4.7
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  8  365k    8 32471    0     0  39272      0  0:00:09 --:--:--  0:00:09 39263100  365k  100  365k    0     0   303k      0  0:00:01  0:00:01 --:--:--  303k
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  365k  100  365k    0     0   502k      0 --:--:-- --:--:-- --:--:--  503k
 ==> 完成
 
 ===== [2/2] make generic =====
@@ -45,27 +45,695 @@ third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence 
  2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
       |                                                            ^
       |                                                            (void*)
-src/platform/imgui_host.mm:51:17: error: use of undeclared identifier 'g_scale'
-   51 |     CGFloat s = g_scale > 0 ? g_scale : 1.0;
-      |                 ^~~~~~~
-src/platform/imgui_host.mm:51:31: error: use of undeclared identifier 'g_scale'
-   51 |     CGFloat s = g_scale > 0 ? g_scale : 1.0;
-      |                               ^~~~~~~
-src/platform/imgui_host.mm:52:5: error: use of undeclared identifier 'g_layer'
-   52 |     g_layer.frame = CGRectMake(x / s, y / s, w / s, h / s);
-      |     ^~~~~~~
-src/platform/imgui_host.mm:53:5: error: use of undeclared identifier 'g_layer'
-   53 |     g_layer.drawableSize = CGSizeMake(w, h);
-      |     ^~~~~~~
-src/platform/imgui_host.mm:249:59: warning: 'windows' is deprecated: first deprecated in iOS 15.0 - Use UIWindowScene.windows on a relevant window scene instead [-Wdeprecated-declarations]
-  249 |     for (UIWindow* w in [UIApplication sharedApplication].windows) {
+src/platform/imgui_host.mm:250:59: warning: 'windows' is deprecated: first deprecated in iOS 15.0 - Use UIWindowScene.windows on a relevant window scene instead [-Wdeprecated-declarations]
+  250 |     for (UIWindow* w in [UIApplication sharedApplication].windows) {
       |                                                           ^
 /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:109:62: note: 'windows' has been explicitly marked deprecated here
   109 | @property(nonatomic,readonly) NSArray<__kindof UIWindow *>  *windows API_DEPRECATED("Use UIWindowScene.windows on a relevant window scene instead", ios(2.0, 15.0), visionos(1.0, 1.0)) API_UNAVAILABLE(watchos);
       |                                                              ^
-src/platform/imgui_host.mm:343:12: error: no member named 'DisplayPos' in 'ImGuiIO'
-  343 |         io.DisplayPos = ImVec2(g_rect_x, g_rect_y);
-      |         ~~ ^
-3 warnings and 5 errors generated.
-make[1]: *** [build/src/platform/imgui_host.mm.o] Error 1
-make: *** [generic] Error 2
+3 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/lua/lua_api.mm -o build/src/lua/lua_api.mm.o
+In file included from src/lua/lua_api.mm:22:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+src/lua/lua_api.mm:743:11: warning: unused variable 'lm' [-Wunused-variable]
+  743 |     auto* lm = static_cast<LuaMethod*>(luaL_checkudata(L, 1, MT_METHOD));
+      |           ^~
+3 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/lua/lua_hook.mm -o build/src/lua/lua_hook.mm.o
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c src/mods/mod_loader.mm -o build/src/mods/mod_loader.mm.o
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/imgui/imgui_demo.cpp -o build/third_party/imgui/imgui_demo.cpp.o
+In file included from third_party/imgui/imgui_demo.cpp:102:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+2 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/imgui/imgui_draw.cpp -o build/third_party/imgui/imgui_draw.cpp.o
+In file included from third_party/imgui/imgui_draw.cpp:34:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+In file included from third_party/imgui/imgui_draw.cpp:36:
+third_party/imgui/imgui_internal.h:801:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawDataBuilder' [-Wnontrivial-memcall]
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:801:54: note: explicitly cast the pointer to silence this warning
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1104:50: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextDeactivatedState' [-Wnontrivial-memcall]
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+third_party/imgui/imgui_internal.h:1104:50: note: explicitly cast the pointer to silence this warning
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+      |                                                  (void*)
+third_party/imgui/imgui_internal.h:1130:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextState' [-Wnontrivial-memcall]
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:1130:54: note: explicitly cast the pointer to silence this warning
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1521:46: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiListClipperData' [-Wnontrivial-memcall]
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+third_party/imgui/imgui_internal.h:1521:46: note: explicitly cast the pointer to silence this warning
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+      |                                              (void*)
+third_party/imgui/imgui_internal.h:1705:34: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiOldColumns' [-Wnontrivial-memcall]
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+third_party/imgui/imgui_internal.h:1705:34: note: explicitly cast the pointer to silence this warning
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+      |                                  (void*)
+third_party/imgui/imgui_internal.h:1896:38: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiIDStackTool' [-Wnontrivial-memcall]
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+third_party/imgui/imgui_internal.h:1896:38: note: explicitly cast the pointer to silence this warning
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+      |                                      (void*)
+third_party/imgui/imgui_internal.h:2944:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTable' [-Wnontrivial-memcall]
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2944:42: note: explicitly cast the pointer to silence this warning
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui_internal.h:2972:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTableTempData' [-Wnontrivial-memcall]
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2972:42: note: explicitly cast the pointer to silence this warning
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui_draw.cpp:369:12: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSharedData' [-Wnontrivial-memcall]
+  369 |     memset(this, 0, sizeof(*this));
+      |            ^
+third_party/imgui/imgui_draw.cpp:369:12: note: explicitly cast the pointer to silence this warning
+  369 |     memset(this, 0, sizeof(*this));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2034:20: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2034 |             memset(&_Channels[i], 0, sizeof(_Channels[i]));  // Current channel is a copy of CmdBuffer/IdxBuffer, don't destruct again
+      |                    ^
+third_party/imgui/imgui_draw.cpp:2034:20: note: explicitly cast the pointer to silence this warning
+ 2034 |             memset(&_Channels[i], 0, sizeof(_Channels[i]));  // Current channel is a copy of CmdBuffer/IdxBuffer, don't destruct again
+      |                    ^
+      |                    (void*)
+third_party/imgui/imgui_draw.cpp:2058:12: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2058 |     memset(&_Channels[0], 0, sizeof(ImDrawChannel));
+      |            ^
+third_party/imgui/imgui_draw.cpp:2058:12: note: explicitly cast the pointer to silence this warning
+ 2058 |     memset(&_Channels[0], 0, sizeof(ImDrawChannel));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2151:12: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImVector<ImDrawCmd>' [-Wnontrivial-memcall]
+ 2151 |     memcpy(&_Channels.Data[_Current]._CmdBuffer, &draw_list->CmdBuffer, sizeof(draw_list->CmdBuffer));
+      |            ^
+third_party/imgui/imgui_draw.cpp:2151:12: note: explicitly cast the pointer to silence this warning
+ 2151 |     memcpy(&_Channels.Data[_Current]._CmdBuffer, &draw_list->CmdBuffer, sizeof(draw_list->CmdBuffer));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2152:12: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImVector<ImDrawIdx>' (aka 'ImVector<unsigned short>') [-Wnontrivial-memcall]
+ 2152 |     memcpy(&_Channels.Data[_Current]._IdxBuffer, &draw_list->IdxBuffer, sizeof(draw_list->IdxBuffer));
+      |            ^
+third_party/imgui/imgui_draw.cpp:2152:12: note: explicitly cast the pointer to silence this warning
+ 2152 |     memcpy(&_Channels.Data[_Current]._IdxBuffer, &draw_list->IdxBuffer, sizeof(draw_list->IdxBuffer));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2154:12: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImVector<ImDrawCmd>' [-Wnontrivial-memcall]
+ 2154 |     memcpy(&draw_list->CmdBuffer, &_Channels.Data[idx]._CmdBuffer, sizeof(draw_list->CmdBuffer));
+      |            ^
+third_party/imgui/imgui_draw.cpp:2154:12: note: explicitly cast the pointer to silence this warning
+ 2154 |     memcpy(&draw_list->CmdBuffer, &_Channels.Data[idx]._CmdBuffer, sizeof(draw_list->CmdBuffer));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2155:12: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImVector<ImDrawIdx>' (aka 'ImVector<unsigned short>') [-Wnontrivial-memcall]
+ 2155 |     memcpy(&draw_list->IdxBuffer, &_Channels.Data[idx]._IdxBuffer, sizeof(draw_list->IdxBuffer));
+      |            ^
+third_party/imgui/imgui_draw.cpp:2155:12: note: explicitly cast the pointer to silence this warning
+ 2155 |     memcpy(&draw_list->IdxBuffer, &_Channels.Data[idx]._IdxBuffer, sizeof(draw_list->IdxBuffer));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2391:12: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImFontAtlas' [-Wnontrivial-memcall]
+ 2391 |     memset(this, 0, sizeof(*this));
+      |            ^
+third_party/imgui/imgui_draw.cpp:2391:12: note: explicitly cast the pointer to silence this warning
+ 2391 |     memset(this, 0, sizeof(*this));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2780:26: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImFontBuildSrcData' [-Wnontrivial-memcall]
+ 2780 |     memset(src_tmp_array.Data, 0, (size_t)src_tmp_array.size_in_bytes());
+      |                          ^
+third_party/imgui/imgui_draw.cpp:2780:26: note: explicitly cast the pointer to silence this warning
+ 2780 |     memset(src_tmp_array.Data, 0, (size_t)src_tmp_array.size_in_bytes());
+      |                          ^
+      |            (void*)
+third_party/imgui/imgui_draw.cpp:2781:26: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImFontBuildDstData' [-Wnontrivial-memcall]
+ 2781 |     memset(dst_tmp_array.Data, 0, (size_t)dst_tmp_array.size_in_bytes());
+      |                          ^
+third_party/imgui/imgui_draw.cpp:2781:26: note: explicitly cast the pointer to silence this warning
+ 2781 |     memset(dst_tmp_array.Data, 0, (size_t)dst_tmp_array.size_in_bytes());
+      |                          ^
+      |            (void*)
+In file included from third_party/imgui/imgui_draw.cpp:34:
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui_draw.cpp:2050:19: note: in instantiation of member function 'ImVector<ImDrawChannel>::reserve' requested here
+ 2050 |         _Channels.reserve(channels_count); // Avoid over reserving since this is likely to stay stable
+      |                   ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImFontBuildSrcData' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2032:88: note: in instantiation of member function 'ImVector<ImFontBuildSrcData>::reserve' requested here
+ 2032 |     inline void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
+      |                                                                                        ^
+third_party/imgui/imgui_draw.cpp:2778:19: note: in instantiation of member function 'ImVector<ImFontBuildSrcData>::resize' requested here
+ 2778 |     src_tmp_array.resize(atlas->ConfigData.Size);
+      |                   ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImFontBuildDstData' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2032:88: note: in instantiation of member function 'ImVector<ImFontBuildDstData>::reserve' requested here
+ 2032 |     inline void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
+      |                                                                                        ^
+third_party/imgui/imgui_draw.cpp:2779:19: note: in instantiation of member function 'ImVector<ImFontBuildDstData>::resize' requested here
+ 2779 |     dst_tmp_array.resize(atlas->Fonts.Size);
+      |                   ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+23 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/imgui/imgui_tables.cpp -o build/third_party/imgui/imgui_tables.cpp.o
+In file included from third_party/imgui/imgui_tables.cpp:198:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+In file included from third_party/imgui/imgui_tables.cpp:200:
+third_party/imgui/imgui_internal.h:801:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawDataBuilder' [-Wnontrivial-memcall]
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:801:54: note: explicitly cast the pointer to silence this warning
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1104:50: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextDeactivatedState' [-Wnontrivial-memcall]
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+third_party/imgui/imgui_internal.h:1104:50: note: explicitly cast the pointer to silence this warning
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+      |                                                  (void*)
+third_party/imgui/imgui_internal.h:1130:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextState' [-Wnontrivial-memcall]
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:1130:54: note: explicitly cast the pointer to silence this warning
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1521:46: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiListClipperData' [-Wnontrivial-memcall]
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+third_party/imgui/imgui_internal.h:1521:46: note: explicitly cast the pointer to silence this warning
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+      |                                              (void*)
+third_party/imgui/imgui_internal.h:1705:34: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiOldColumns' [-Wnontrivial-memcall]
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+third_party/imgui/imgui_internal.h:1705:34: note: explicitly cast the pointer to silence this warning
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+      |                                  (void*)
+third_party/imgui/imgui_internal.h:1896:38: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiIDStackTool' [-Wnontrivial-memcall]
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+third_party/imgui/imgui_internal.h:1896:38: note: explicitly cast the pointer to silence this warning
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+      |                                      (void*)
+third_party/imgui/imgui_internal.h:2944:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTable' [-Wnontrivial-memcall]
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2944:42: note: explicitly cast the pointer to silence this warning
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui_internal.h:2972:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTableTempData' [-Wnontrivial-memcall]
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2972:42: note: explicitly cast the pointer to silence this warning
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui_tables.cpp:2647:35: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2647 |                     memcpy(dst_tmp++, channel, sizeof(ImDrawChannel));
+      |                                   ^
+third_party/imgui/imgui_tables.cpp:2647:35: note: explicitly cast the pointer to silence this warning
+ 2647 |                     memcpy(dst_tmp++, channel, sizeof(ImDrawChannel));
+      |                                   ^
+      |                            (void*)
+third_party/imgui/imgui_tables.cpp:2653:31: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2653 |                 memcpy(dst_tmp++, &splitter->_Channels[table->Bg2DrawChannelUnfrozen], sizeof(ImDrawChannel));
+      |                               ^
+third_party/imgui/imgui_tables.cpp:2653:31: note: explicitly cast the pointer to silence this warning
+ 2653 |                 memcpy(dst_tmp++, &splitter->_Channels[table->Bg2DrawChannelUnfrozen], sizeof(ImDrawChannel));
+      |                               ^
+      |                        (void*)
+third_party/imgui/imgui_tables.cpp:2662:27: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2662 |             memcpy(dst_tmp++, channel, sizeof(ImDrawChannel));
+      |                           ^
+third_party/imgui/imgui_tables.cpp:2662:27: note: explicitly cast the pointer to silence this warning
+ 2662 |             memcpy(dst_tmp++, channel, sizeof(ImDrawChannel));
+      |                           ^
+      |                    (void*)
+third_party/imgui/imgui_tables.cpp:2666:41: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2666 |         memcpy(splitter->_Channels.Data + LEADING_DRAW_CHANNELS, g.DrawChannelsTempMergeBuffer.Data, (splitter->_Count - LEADING_DRAW_CHANNELS) * sizeof(ImDrawChannel));
+      |                                         ^
+third_party/imgui/imgui_tables.cpp:2666:41: note: explicitly cast the pointer to silence this warning
+ 2666 |         memcpy(splitter->_Channels.Data + LEADING_DRAW_CHANNELS, g.DrawChannelsTempMergeBuffer.Data, (splitter->_Count - LEADING_DRAW_CHANNELS) * sizeof(ImDrawChannel));
+      |                                         ^
+      |                (void*)
+In file included from third_party/imgui/imgui_tables.cpp:198:
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiTable' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2032:88: note: in instantiation of member function 'ImVector<ImGuiTable>::reserve' requested here
+ 2032 |     inline void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
+      |                                                                                        ^
+third_party/imgui/imgui_internal.h:690:101: note: in instantiation of member function 'ImVector<ImGuiTable>::resize' requested here
+  690 |     T*          Add()                               { int idx = FreeIdx; if (idx == Buf.Size) { Buf.resize(Buf.Size + 1); FreeIdx++; } else { FreeIdx = *(int*)&Buf[idx]; } IM_PLACEMENT_NEW(&Buf[idx]) T(); AliveCount++; return &Buf[idx]; }
+      |                                                                                                     ^
+third_party/imgui/imgui_internal.h:687:156: note: in instantiation of member function 'ImPool<ImGuiTable>::Add' requested here
+  687 |     T*          GetOrAddByKey(ImGuiID key)          { int* p_idx = Map.GetIntRef(key, -1); if (*p_idx != -1) return &Buf[*p_idx]; *p_idx = FreeIdx; return Add(); }
+      |                                                                                                                                                            ^
+third_party/imgui/imgui_tables.cpp:346:34: note: in instantiation of member function 'ImPool<ImGuiTable>::GetOrAddByKey' requested here
+  346 |     ImGuiTable* table = g.Tables.GetOrAddByKey(id);
+      |                                  ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+third_party/imgui/imgui.h:2033:189: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiTableTempData' [-Wnontrivial-memcall]
+ 2033 |     inline void         resize(int new_size, const T& v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
+      |                                                                                                                                                                                             ^
+third_party/imgui/imgui_tables.cpp:351:26: note: in instantiation of member function 'ImVector<ImGuiTableTempData>::resize' requested here
+  351 |         g.TablesTempData.resize(g.TablesTempDataStacked, ImGuiTableTempData());
+      |                          ^
+third_party/imgui/imgui.h:2033:189: note: explicitly cast the pointer to silence this warning
+ 2033 |     inline void         resize(int new_size, const T& v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
+      |                                                                                                                                                                                             ^
+      |                                                                                                                                                                                             (void*)
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiTableTempData' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2033:88: note: in instantiation of member function 'ImVector<ImGuiTableTempData>::reserve' requested here
+ 2033 |     inline void         resize(int new_size, const T& v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
+      |                                                                                        ^
+third_party/imgui/imgui_tables.cpp:351:26: note: in instantiation of member function 'ImVector<ImGuiTableTempData>::resize' requested here
+  351 |         g.TablesTempData.resize(g.TablesTempDataStacked, ImGuiTableTempData());
+      |                          ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImDrawChannel' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2032:88: note: in instantiation of member function 'ImVector<ImDrawChannel>::reserve' requested here
+ 2032 |     inline void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
+      |                                                                                        ^
+third_party/imgui/imgui_tables.cpp:2600:39: note: in instantiation of member function 'ImVector<ImDrawChannel>::resize' requested here
+ 2600 |         g.DrawChannelsTempMergeBuffer.resize(splitter->_Count - LEADING_DRAW_CHANNELS); // Use shared temporary storage so the allocation gets amortized
+      |                                       ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+third_party/imgui/imgui.h:2039:127: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiOldColumns' [-Wnontrivial-memcall]
+ 2039 |     inline void         push_back(const T& v)               { if (Size == Capacity) reserve(_grow_capacity(Size + 1)); memcpy(&Data[Size], &v, sizeof(v)); Size++; }
+      |                                                                                                                               ^
+third_party/imgui/imgui_tables.cpp:4198:28: note: in instantiation of member function 'ImVector<ImGuiOldColumns>::push_back' requested here
+ 4198 |     window->ColumnsStorage.push_back(ImGuiOldColumns());
+      |                            ^
+third_party/imgui/imgui.h:2039:127: note: explicitly cast the pointer to silence this warning
+ 2039 |     inline void         push_back(const T& v)               { if (Size == Capacity) reserve(_grow_capacity(Size + 1)); memcpy(&Data[Size], &v, sizeof(v)); Size++; }
+      |                                                                                                                               ^
+      |                                                                                                                               (void*)
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiOldColumns' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2039:85: note: in instantiation of member function 'ImVector<ImGuiOldColumns>::reserve' requested here
+ 2039 |     inline void         push_back(const T& v)               { if (Size == Capacity) reserve(_grow_capacity(Size + 1)); memcpy(&Data[Size], &v, sizeof(v)); Size++; }
+      |                                                                                     ^
+third_party/imgui/imgui_tables.cpp:4198:28: note: in instantiation of member function 'ImVector<ImGuiOldColumns>::push_back' requested here
+ 4198 |     window->ColumnsStorage.push_back(ImGuiOldColumns());
+      |                            ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+20 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/imgui/imgui_widgets.cpp -o build/third_party/imgui/imgui_widgets.cpp.o
+In file included from third_party/imgui/imgui_widgets.cpp:41:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+In file included from third_party/imgui/imgui_widgets.cpp:43:
+third_party/imgui/imgui_internal.h:801:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawDataBuilder' [-Wnontrivial-memcall]
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:801:54: note: explicitly cast the pointer to silence this warning
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1104:50: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextDeactivatedState' [-Wnontrivial-memcall]
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+third_party/imgui/imgui_internal.h:1104:50: note: explicitly cast the pointer to silence this warning
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+      |                                                  (void*)
+third_party/imgui/imgui_internal.h:1130:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextState' [-Wnontrivial-memcall]
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:1130:54: note: explicitly cast the pointer to silence this warning
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1521:46: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiListClipperData' [-Wnontrivial-memcall]
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+third_party/imgui/imgui_internal.h:1521:46: note: explicitly cast the pointer to silence this warning
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+      |                                              (void*)
+third_party/imgui/imgui_internal.h:1705:34: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiOldColumns' [-Wnontrivial-memcall]
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+third_party/imgui/imgui_internal.h:1705:34: note: explicitly cast the pointer to silence this warning
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+      |                                  (void*)
+third_party/imgui/imgui_internal.h:1896:38: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiIDStackTool' [-Wnontrivial-memcall]
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+third_party/imgui/imgui_internal.h:1896:38: note: explicitly cast the pointer to silence this warning
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+      |                                      (void*)
+third_party/imgui/imgui_internal.h:2944:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTable' [-Wnontrivial-memcall]
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2944:42: note: explicitly cast the pointer to silence this warning
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui_internal.h:2972:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTableTempData' [-Wnontrivial-memcall]
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2972:42: note: explicitly cast the pointer to silence this warning
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui_widgets.cpp:4703:59: warning: variable 'empty_string' is uninitialized when passed as a const pointer argument here [-Wuninitialized-const-pointer]
+ 4703 |                 stb_textedit_replace(state, &state->Stb, &empty_string, 0);
+      |                                                           ^~~~~~~~~~~~
+third_party/imgui/imgui_widgets.cpp:7885:12: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTabBar' [-Wnontrivial-memcall]
+ 7885 |     memset(this, 0, sizeof(*this));
+      |            ^
+third_party/imgui/imgui_widgets.cpp:7885:12: note: explicitly cast the pointer to silence this warning
+ 7885 |     memset(this, 0, sizeof(*this));
+      |            ^
+      |            (void*)
+In file included from third_party/imgui/imgui_widgets.cpp:41:
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiTabBar' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2032:88: note: in instantiation of member function 'ImVector<ImGuiTabBar>::reserve' requested here
+ 2032 |     inline void         resize(int new_size)                { if (new_size > Capacity) reserve(_grow_capacity(new_size)); Size = new_size; }
+      |                                                                                        ^
+third_party/imgui/imgui_internal.h:690:101: note: in instantiation of member function 'ImVector<ImGuiTabBar>::resize' requested here
+  690 |     T*          Add()                               { int idx = FreeIdx; if (idx == Buf.Size) { Buf.resize(Buf.Size + 1); FreeIdx++; } else { FreeIdx = *(int*)&Buf[idx]; } IM_PLACEMENT_NEW(&Buf[idx]) T(); AliveCount++; return &Buf[idx]; }
+      |                                                                                                     ^
+third_party/imgui/imgui_internal.h:687:156: note: in instantiation of member function 'ImPool<ImGuiTabBar>::Add' requested here
+  687 |     T*          GetOrAddByKey(ImGuiID key)          { int* p_idx = Map.GetIntRef(key, -1); if (*p_idx != -1) return &Buf[*p_idx]; *p_idx = FreeIdx; return Add(); }
+      |                                                                                                                                                            ^
+third_party/imgui/imgui_widgets.cpp:7935:38: note: in instantiation of member function 'ImPool<ImGuiTabBar>::GetOrAddByKey' requested here
+ 7935 |     ImGuiTabBar* tab_bar = g.TabBars.GetOrAddByKey(id);
+      |                                      ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+13 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/imgui/imgui.cpp -o build/third_party/imgui/imgui.cpp.o
+In file included from third_party/imgui/imgui.cpp:1004:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+In file included from third_party/imgui/imgui.cpp:1006:
+third_party/imgui/imgui_internal.h:801:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawDataBuilder' [-Wnontrivial-memcall]
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:801:54: note: explicitly cast the pointer to silence this warning
+  801 |     ImDrawDataBuilder()                     { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1104:50: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextDeactivatedState' [-Wnontrivial-memcall]
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+third_party/imgui/imgui_internal.h:1104:50: note: explicitly cast the pointer to silence this warning
+ 1104 |     ImGuiInputTextDeactivatedState()    { memset(this, 0, sizeof(*this)); }
+      |                                                  ^
+      |                                                  (void*)
+third_party/imgui/imgui_internal.h:1130:54: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiInputTextState' [-Wnontrivial-memcall]
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+third_party/imgui/imgui_internal.h:1130:54: note: explicitly cast the pointer to silence this warning
+ 1130 |     ImGuiInputTextState()                   { memset(this, 0, sizeof(*this)); }
+      |                                                      ^
+      |                                                      (void*)
+third_party/imgui/imgui_internal.h:1521:46: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiListClipperData' [-Wnontrivial-memcall]
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+third_party/imgui/imgui_internal.h:1521:46: note: explicitly cast the pointer to silence this warning
+ 1521 |     ImGuiListClipperData()          { memset(this, 0, sizeof(*this)); }
+      |                                              ^
+      |                                              (void*)
+third_party/imgui/imgui_internal.h:1705:34: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiOldColumns' [-Wnontrivial-memcall]
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+third_party/imgui/imgui_internal.h:1705:34: note: explicitly cast the pointer to silence this warning
+ 1705 |     ImGuiOldColumns()   { memset(this, 0, sizeof(*this)); }
+      |                                  ^
+      |                                  (void*)
+third_party/imgui/imgui_internal.h:1896:38: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiIDStackTool' [-Wnontrivial-memcall]
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+third_party/imgui/imgui_internal.h:1896:38: note: explicitly cast the pointer to silence this warning
+ 1896 |     ImGuiIDStackTool()      { memset(this, 0, sizeof(*this)); CopyToClipboardLastTime = -FLT_MAX; }
+      |                                      ^
+      |                                      (void*)
+third_party/imgui/imgui_internal.h:2944:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTable' [-Wnontrivial-memcall]
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2944:42: note: explicitly cast the pointer to silence this warning
+ 2944 |     ImGuiTable()                { memset(this, 0, sizeof(*this)); LastFrameActive = -1; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui_internal.h:2972:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiTableTempData' [-Wnontrivial-memcall]
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+third_party/imgui/imgui_internal.h:2972:42: note: explicitly cast the pointer to silence this warning
+ 2972 |     ImGuiTableTempData()        { memset(this, 0, sizeof(*this)); LastTimeActive = -1.0f; }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/imgui.cpp:1322:12: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiIO' [-Wnontrivial-memcall]
+ 1322 |     memset(this, 0, sizeof(*this));
+      |            ^
+third_party/imgui/imgui.cpp:1322:12: note: explicitly cast the pointer to silence this warning
+ 1322 |     memset(this, 0, sizeof(*this));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui.cpp:2909:12: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiListClipper' [-Wnontrivial-memcall]
+ 2909 |     memset(this, 0, sizeof(*this));
+      |            ^
+third_party/imgui/imgui.cpp:2909:12: note: explicitly cast the pointer to silence this warning
+ 2909 |     memset(this, 0, sizeof(*this));
+      |            ^
+      |            (void*)
+third_party/imgui/imgui.cpp:3857:12: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGuiWindow' [-Wnontrivial-memcall]
+ 3857 |     memset(this, 0, sizeof(*this));
+      |            ^
+third_party/imgui/imgui.cpp:3857:12: note: explicitly cast the pointer to silence this warning
+ 3857 |     memset(this, 0, sizeof(*this));
+      |            ^
+      |            (void*)
+In file included from third_party/imgui/imgui.cpp:1004:
+third_party/imgui/imgui.h:2033:189: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiListClipperData' [-Wnontrivial-memcall]
+ 2033 |     inline void         resize(int new_size, const T& v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
+      |                                                                                                                                                                                             ^
+third_party/imgui/imgui.cpp:2938:27: note: in instantiation of member function 'ImVector<ImGuiListClipperData>::resize' requested here
+ 2938 |         g.ClipperTempData.resize(g.ClipperTempDataStacked, ImGuiListClipperData());
+      |                           ^
+third_party/imgui/imgui.h:2033:189: note: explicitly cast the pointer to silence this warning
+ 2033 |     inline void         resize(int new_size, const T& v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
+      |                                                                                                                                                                                             ^
+      |                                                                                                                                                                                             (void*)
+third_party/imgui/imgui.h:2035:182: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'ImGuiListClipperData' [-Wnontrivial-memcall]
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+third_party/imgui/imgui.h:2033:88: note: in instantiation of member function 'ImVector<ImGuiListClipperData>::reserve' requested here
+ 2033 |     inline void         resize(int new_size, const T& v)    { if (new_size > Capacity) reserve(_grow_capacity(new_size)); if (new_size > Size) for (int n = Size; n < new_size; n++) memcpy(&Data[n], &v, sizeof(v)); Size = new_size; }
+      |                                                                                        ^
+third_party/imgui/imgui.cpp:2938:27: note: in instantiation of member function 'ImVector<ImGuiListClipperData>::resize' requested here
+ 2938 |         g.ClipperTempData.resize(g.ClipperTempDataStacked, ImGuiListClipperData());
+      |                           ^
+third_party/imgui/imgui.h:2035:182: note: explicitly cast the pointer to silence this warning
+ 2035 |     inline void         reserve(int new_capacity)           { if (new_capacity <= Capacity) return; T* new_data = (T*)IM_ALLOC((size_t)new_capacity * sizeof(T)); if (Data) { memcpy(new_data, Data, (size_t)Size * sizeof(T)); IM_FREE(Data); } Data = new_data; Capacity = new_capacity; }
+      |                                                                                                                                                                                      ^
+      |                                                                                                                                                                                      (void*)
+15 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -std=c++17 -fobjc-arc -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/imgui/backends/imgui_impl_metal.mm -o build/third_party/imgui/backends/imgui_impl_metal.mm.o
+In file included from third_party/imgui/backends/imgui_impl_metal.mm:35:
+third_party/imgui/imgui.h:2751:43: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawListSplitter' [-Wnontrivial-memcall]
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+third_party/imgui/imgui.h:2751:43: note: explicitly cast the pointer to silence this warning
+ 2751 |     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
+      |                                           ^
+      |                                           (void*)
+third_party/imgui/imgui.h:2822:60: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImDrawList' [-Wnontrivial-memcall]
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+third_party/imgui/imgui.h:2822:60: note: explicitly cast the pointer to silence this warning
+ 2822 |     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
+      |                                                            ^
+      |                                                            (void*)
+third_party/imgui/backends/imgui_impl_metal.mm:79:42: warning: first argument in call to 'memset' is a pointer to non-trivially copyable type 'ImGui_ImplMetal_Data' [-Wnontrivial-memcall]
+   79 |     ImGui_ImplMetal_Data()      { memset(this, 0, sizeof(*this)); }
+      |                                          ^
+third_party/imgui/backends/imgui_impl_metal.mm:79:42: note: explicitly cast the pointer to silence this warning
+   79 |     ImGui_ImplMetal_Data()      { memset(this, 0, sizeof(*this)); }
+      |                                          ^
+      |                                          (void*)
+third_party/imgui/backends/imgui_impl_metal.mm:144:27: warning: unused variable 'bd' [-Wunused-variable]
+  144 |     ImGui_ImplMetal_Data* bd = ImGui_ImplMetal_GetBackendData();
+      |                           ^~
+4 warnings generated.
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lapi.c -o build/c/third_party/lua/src/lapi.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lauxlib.c -o build/c/third_party/lua/src/lauxlib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lbaselib.c -o build/c/third_party/lua/src/lbaselib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lcode.c -o build/c/third_party/lua/src/lcode.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lcorolib.c -o build/c/third_party/lua/src/lcorolib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lctype.c -o build/c/third_party/lua/src/lctype.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/ldblib.c -o build/c/third_party/lua/src/ldblib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/ldebug.c -o build/c/third_party/lua/src/ldebug.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/ldo.c -o build/c/third_party/lua/src/ldo.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/ldump.c -o build/c/third_party/lua/src/ldump.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lfunc.c -o build/c/third_party/lua/src/lfunc.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lgc.c -o build/c/third_party/lua/src/lgc.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/linit.c -o build/c/third_party/lua/src/linit.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/liolib.c -o build/c/third_party/lua/src/liolib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/llex.c -o build/c/third_party/lua/src/llex.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lmathlib.c -o build/c/third_party/lua/src/lmathlib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lmem.c -o build/c/third_party/lua/src/lmem.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/loadlib.c -o build/c/third_party/lua/src/loadlib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lobject.c -o build/c/third_party/lua/src/lobject.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lopcodes.c -o build/c/third_party/lua/src/lopcodes.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/loslib.c -o build/c/third_party/lua/src/loslib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lparser.c -o build/c/third_party/lua/src/lparser.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lstate.c -o build/c/third_party/lua/src/lstate.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lstring.c -o build/c/third_party/lua/src/lstring.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lstrlib.c -o build/c/third_party/lua/src/lstrlib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/ltable.c -o build/c/third_party/lua/src/ltable.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/ltablib.c -o build/c/third_party/lua/src/ltablib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/ltm.c -o build/c/third_party/lua/src/ltm.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lundump.c -o build/c/third_party/lua/src/lundump.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lutf8lib.c -o build/c/third_party/lua/src/lutf8lib.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lvm.c -o build/c/third_party/lua/src/lvm.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -Isrc -Ithird_party/lua/src -DLUA_USE_IOS -c third_party/lua/src/lzio.c -o build/c/third_party/lua/src/lzio.lo
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -arch arm64 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -miphoneos-version-min=15.0 -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter -dynamiclib -install_name @executable_path/Frameworks/TerrariaModMenu.dylib -framework Foundation -framework UIKit -framework Metal -framework QuartzCore -framework CoreGraphics -o build/TerrariaModMenu.dylib build/src/entry.mm.o build/src/ui/menu.mm.o build/src/il2cpp_api.mm.o build/src/platform/imgui_host.mm.o build/src/lua/lua_api.mm.o build/src/lua/lua_hook.mm.o build/src/mods/mod_loader.mm.o build/third_party/imgui/imgui_demo.cpp.o build/third_party/imgui/imgui_draw.cpp.o build/third_party/imgui/imgui_tables.cpp.o build/third_party/imgui/imgui_widgets.cpp.o build/third_party/imgui/imgui.cpp.o build/third_party/imgui/backends/imgui_impl_metal.mm.o build/c/third_party/lua/src/lapi.lo build/c/third_party/lua/src/lauxlib.lo build/c/third_party/lua/src/lbaselib.lo build/c/third_party/lua/src/lcode.lo build/c/third_party/lua/src/lcorolib.lo build/c/third_party/lua/src/lctype.lo build/c/third_party/lua/src/ldblib.lo build/c/third_party/lua/src/ldebug.lo build/c/third_party/lua/src/ldo.lo build/c/third_party/lua/src/ldump.lo build/c/third_party/lua/src/lfunc.lo build/c/third_party/lua/src/lgc.lo build/c/third_party/lua/src/linit.lo build/c/third_party/lua/src/liolib.lo build/c/third_party/lua/src/llex.lo build/c/third_party/lua/src/lmathlib.lo build/c/third_party/lua/src/lmem.lo build/c/third_party/lua/src/loadlib.lo build/c/third_party/lua/src/lobject.lo build/c/third_party/lua/src/lopcodes.lo build/c/third_party/lua/src/loslib.lo build/c/third_party/lua/src/lparser.lo build/c/third_party/lua/src/lstate.lo build/c/third_party/lua/src/lstring.lo build/c/third_party/lua/src/lstrlib.lo build/c/third_party/lua/src/ltable.lo build/c/third_party/lua/src/ltablib.lo build/c/third_party/lua/src/ltm.lo build/c/third_party/lua/src/lundump.lo build/c/third_party/lua/src/lutf8lib.lo build/c/third_party/lua/src/lvm.lo build/c/third_party/lua/src/lzio.lo
+[ModMenu] 产物：build/TerrariaModMenu.dylib
