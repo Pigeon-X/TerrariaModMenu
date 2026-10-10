@@ -4,7 +4,6 @@ on:
   push:
   workflow_dispatch:
 
-# 需要写权限才能把编译产物和日志提交回 dist/
 permissions:
   contents: write
 
@@ -19,37 +18,58 @@ jobs:
 
       - name: 环境信息
         run: |
-          xcodebuild -version || true
-          xcrun --sdk iphoneos --show-sdk-path || true
-          clang --version || true
+          echo "runner: $(sw_vers -productVersion 2>/dev/null || echo ?)"
+          xcodebuild -version 2>&1 || true
+          echo "sdk: $(xcrun --sdk iphoneos --show-sdk-path 2>&1 || true)"
+          echo "clang: $(clang --version 2>&1 | head -1 || true)"
 
-      # 构建失败也要继续跑后面的“回传日志”步骤
+      # 编译失败也继续跑后面的步骤，好把日志吐出来
       - name: 拉依赖 + 编译
-        id: build
+        id: compile
         continue-on-error: true
         run: |
-          set -o pipefail
           mkdir -p dist
           : > build.log
 
           {
-            echo "=== [1/2] fetch_deps ==="
+            echo "===== [1/2] fetch_deps ====="
             bash scripts/fetch_deps.sh
           } 2>&1 | tee -a build.log
 
           {
-            echo "=== [2/2] make generic ==="
+            echo ""
+            echo "===== [2/2] make generic ====="
             make generic
           } 2>&1 | tee -a build.log
 
           if [ -f build/TerrariaModMenu.dylib ]; then
             cp build/TerrariaModMenu.dylib dist/TerrariaModMenu.dylib
-            echo "OK: 已产出 dist/TerrariaModMenu.dylib"
+            echo "结果: 编译成功"
           else
-            echo "FAILED: 没有产出 dylib"
+            echo "结果: 编译失败（没产出 dylib）"
           fi
 
-      - name: 收集产物与日志
+      # 把日志写进 run 页面顶部的 Summary —— 不用下载 artifact 就能看
+      - name: 日志写入 Summary
+        if: always()
+        run: |
+          {
+            echo "## 构建结果"
+            echo ""
+            if [ -f dist/TerrariaModMenu.dylib ]; then
+              echo "✅ 编译成功，产物 \`dist/TerrariaModMenu.dylib\`"
+            else
+              echo "❌ 编译失败"
+            fi
+            echo ""
+            echo "### 编译日志（最后 400 行）"
+            echo ""
+            echo '```'
+            tail -n 400 build.log 2>/dev/null || echo "(没有日志)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 收集产物
         if: always()
         run: |
           mkdir -p dist
@@ -63,16 +83,17 @@ jobs:
           path: dist/
           if-no-files-found: warn
 
-      # 把 dist/（dylib + 编译日志）提交回仓库，方便直接 git pull 取
+      # 回传 dist/。这一步失败不影响 job 结论（日志已经进 Summary 了）
       - name: 回传 dist/
         if: always() && github.event_name == 'push'
+        continue-on-error: true
         run: |
           git config user.name "modmenu-ci"
           git config user.email "modmenu-ci@local"
-          git add -f dist/
+          git add -f dist/ || true
           if git diff --cached --quiet; then
             echo "dist/ 没变化，跳过提交"
           else
-            git commit -m "ci: 更新构建产物与日志 [skip ci]"
-            git push
+            git commit -m "ci: 更新构建产物与日志 [skip ci]" || true
+            git push || echo "WARN: push 失败（多半是仓库的 Workflow permissions 是只读）"
           fi
