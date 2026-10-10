@@ -28,6 +28,8 @@ std::atomic<bool> g_started{false};
 bool g_imgui_ready = false;
 id<MTLDevice> g_device = nil;
 double g_last_time = 0;
+std::atomic<int> g_render_count{0};
+std::atomic<bool> g_logged_layer{false};
 
 // 触摸状态（钩 UIWindow sendEvent: 拿到的，单位：物理像素）
 std::atomic<bool> g_touching{false};
@@ -121,6 +123,12 @@ void render_ui(id<MTLCommandBuffer> cb, id<MTLDrawable> drawable) {
     id<CAMetalDrawable> md = (id<CAMetalDrawable>)drawable;
     if (!md || !md.texture) return;
 
+    if (++g_render_count == 1) {
+        mm::logf("诊断：第一次拿到可绘制对象 %dx%d，像素格式 %lu",
+                 (int)md.texture.width, (int)md.texture.height,
+                 (unsigned long)md.texture.pixelFormat);
+    }
+
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((float)md.texture.width, (float)md.texture.height);
     double now = CACurrentMediaTime();
@@ -148,14 +156,32 @@ void render_ui(id<MTLCommandBuffer> cb, id<MTLDrawable> drawable) {
     }
 }
 
-// 原始的 -presentDrawable:，由 swizzle 保存
+// 原始的 present 方法，由 swizzle 保存
 void (*g_orig_present)(id, SEL, id<MTLDrawable>) = nullptr;
+void (*g_orig_present_amd)(id, SEL, id<MTLDrawable>, double) = nullptr;
+id (*g_orig_next_drawable)(id, SEL) = nullptr;
 
 void mm_present_drawable(id self, SEL _cmd, id<MTLDrawable> drawable) {
     @autoreleasepool {
         render_ui((id<MTLCommandBuffer>)self, drawable);
     }
     if (g_orig_present) g_orig_present(self, _cmd, drawable);
+}
+
+// 新一点的引擎会用这个重载（带最少显示时长），Unity 很可能走它
+void mm_present_drawable_amd(id self, SEL _cmd, id<MTLDrawable> drawable, double duration) {
+    @autoreleasepool {
+        render_ui((id<MTLCommandBuffer>)self, drawable);
+    }
+    if (g_orig_present_amd) g_orig_present_amd(self, _cmd, drawable, duration);
+}
+
+// 只是拿来做诊断：告诉我们 Metal 到底有没有在用
+id mm_next_drawable(id self, SEL _cmd) {
+    if (!g_logged_layer.exchange(true)) {
+        mm::logf("诊断：检测到 CAMetalLayer nextDrawable，Metal 正在被使用");
+    }
+    return g_orig_next_drawable ? g_orig_next_drawable(self, _cmd) : nil;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +225,7 @@ bool start() {
     if (g_started.exchange(true)) return true;
 
     g_scale = [UIScreen mainScreen].scale ?: 1.0;
+    mm::logf("屏幕缩放 = %.1f", (double)g_scale);
 
     Class cb_cls = find_command_buffer_class();
     if (!cb_cls) {
@@ -206,13 +233,40 @@ bool start() {
         g_started.store(false);
         return false;
     }
+    mm::logf("Metal 命令缓冲类：%s", class_getName(cb_cls));
+
     swizzle(cb_cls, @selector(presentDrawable:), (IMP)mm_present_drawable, &g_orig_present);
-    mm::logf("Metal 钩子已安装：%s", class_getName(cb_cls));
+    mm::logf("  钩 presentDrawable:                      %s",
+             g_orig_present ? "OK" : "该方法不存在");
+    swizzle(cb_cls, @selector(presentDrawable:afterMinimumDuration:),
+            (IMP)mm_present_drawable_amd, &g_orig_present_amd);
+    mm::logf("  钩 presentDrawable:afterMinimumDuration: %s",
+             g_orig_present_amd ? "OK" : "该方法不存在");
 
     swizzle([UIWindow class], @selector(sendEvent:), (IMP)mm_send_event, &g_orig_send_event);
-    mm::logf("触摸钩子已安装：UIWindow sendEvent:");
+    mm::logf("  钩 UIWindow sendEvent:                   %s",
+             g_orig_send_event ? "OK" : "该方法不存在");
+
+    swizzle([CAMetalLayer class], @selector(nextDrawable), (IMP)mm_next_drawable, &g_orig_next_drawable);
+    mm::logf("  钩 CAMetalLayer nextDrawable（诊断用）    %s",
+             g_orig_next_drawable ? "OK" : "该方法不存在");
 
     ui::set_visible(true);
+
+    // 8 秒后看有没有真的渲染到，给日志一个明确的结论
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        int n = g_render_count.load();
+        if (n == 0) {
+            mm::logf("警告：8 秒内一次都没渲染到 —— 游戏没走我们钩的那些 present 方法");
+            mm::logf("        presentDrawable:%s  afterMinimumDuration:%s  nextDrawable:%s",
+                     g_orig_present ? "已挂" : "无",
+                     g_orig_present_amd ? "已挂" : "无",
+                     g_orig_next_drawable ? "已挂" : "无");
+        } else {
+            mm::logf("诊断：8 秒内渲染了 %d 帧，界面应该在屏幕上", n);
+        }
+    });
     return true;
 }
 
