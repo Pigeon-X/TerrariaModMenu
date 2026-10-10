@@ -20,4 +20,7 @@ void draw_tab();
 // 配置持久化（C 档）
 void load_state();
 
+// A 档：物品生成器（搜索 + 点击放入背包）
+void draw_item_page();
+
 }  // namespace cheat

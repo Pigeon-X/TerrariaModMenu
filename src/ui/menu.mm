@@ -291,7 +291,22 @@ void draw_content() {
             break;
         case 1: draw_placeholder("世界"); break;
         case 2: draw_placeholder("实体"); break;
-        case 3: draw_placeholder("物品"); break;
+        case 3:
+#ifndef MODMENU_PREVIEW
+            if (ImGui::BeginTabBar("##item_tabs")) {
+                if (ImGui::BeginTabItem("物品生成")) {
+                    begin_card("##card_igen", "物品生成器");
+                    cheat::draw_item_page();
+                    end_card();
+                    ImGui::EndTabItem();
+                }
+                if (ImGui::BeginTabItem("物品修改器")) { draw_placeholder("物品修改器"); ImGui::EndTabItem(); }
+                ImGui::EndTabBar();
+            }
+#else
+            draw_placeholder("物品（预览模式）");
+#endif
+            break;
         case 4: draw_placeholder("杂项"); break;
         case 5: draw_placeholder("网络"); break;
         case 6: draw_settings_page(); break;

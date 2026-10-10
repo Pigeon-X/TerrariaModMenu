@@ -9,6 +9,7 @@
 #include "../il2cpp_api.hpp"
 #include "../mm_log.hpp"
 #include "../core/config.hpp"
+#include "../core/game_data.hpp"
 
 namespace cheat {
 namespace {
@@ -327,6 +328,43 @@ void draw_tab() {
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("按 Item ID 直接塞进背包第一个空槽");
     }
+}
+
+// ---- A 档：物品生成器 ------------------------------------------------------
+void draw_item_page() {
+    if (!gd::ready() && !gd::init()) {
+        ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "物品表不可用（Lang.GetItemNameValue 没解析到）");
+        return;
+    }
+    static char search[64] = "";
+    static int count = 1;
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f);
+    ImGui::InputTextWithHint("##isearch", "搜索物品名或 ID", search, sizeof(search));
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 20);
+    ImGui::InputInt("数量##icount", &count, 1, 100);
+
+    const auto& tbl = gd::item_table();
+    ImGui::TextDisabled("共 %zu 项，点名字直接放进背包", tbl.size());
+    ImGui::Separator();
+
+    ImGui::BeginChild("##ilist", ImVec2(0, 0));
+    int shown = 0;
+    std::string q = search;
+    for (const auto& kv : tbl) {
+        if (!q.empty()) {
+            bool hit = kv.second.find(q) != std::string::npos ||
+                       std::to_string(kv.first).rfind(q, 0) == 0;
+            if (!hit) continue;
+        }
+        ImGui::PushID(kv.first);
+        char label[160];
+        snprintf(label, sizeof(label), "%s   #%d", kv.second.c_str(), kv.first);
+        if (ImGui::Selectable(label)) give_item(kv.first, count);
+        ImGui::PopID();
+        if (++shown >= 300) { ImGui::TextDisabled("…（只显示前 300 条，细化搜索）"); break; }
+    }
+    ImGui::EndChild();
 }
 
 }  // namespace cheat
