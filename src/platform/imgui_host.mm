@@ -30,6 +30,7 @@
 #include "../mm_log.hpp"
 #include "../mods/mod_loader.hpp"
 #include "../ui/menu.hpp"
+#include "../ui/cheat.hpp"
 #include "../ui/ball_texture.hpp"
 
 namespace host {
@@ -294,7 +295,7 @@ void render_overlay() {
         // 叠加层是全屏的，每帧清理+绘制会明显吃掉游戏帧率，这一步很关键。
         // ------------------------------------------------------------------
         const double t_now = CACurrentMediaTime();
-        const bool interacting = ui::visible() || g_touching.load();
+        const bool interacting = ui::visible() || g_touching.load() || cheat::active();
         if (!interacting && (t_now - g_last_present) < kIdleInterval) return;
 
         // 旋转/尺寸变化时把叠加层对齐到整屏
@@ -337,6 +338,7 @@ void render_overlay() {
         ImGui_ImplMetal_NewFrame(rpd);
         ImGui::NewFrame();
         mods::tick();
+        cheat::tick();
         ui::draw();
         ImGui::Render();
 

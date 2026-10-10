@@ -100,6 +100,7 @@ IL2_WRAP(Type*, method_get_param, "il2cpp_method_get_param",
 IL2_WRAP(int, type_get_type, "il2cpp_type_get_type", (Type* t), (t))
 IL2_WRAP(const char*, type_get_name, "il2cpp_type_get_name", (Type* t), (t))
 IL2_WRAP(Class*, class_get_element_class, "il2cpp_class_get_element_class", (Class* k), (k))
+IL2_WRAP(int32_t, class_array_element_size, "il2cpp_class_array_element_size", (Class* k), (k))
 IL2_WRAP(uint32_t, class_value_size, "il2cpp_class_value_size",
          (Class* k, uint32_t* align), (k, align))
 

@@ -19,6 +19,7 @@
 #include "../il2cpp_api.hpp"
 #include "../mm_log.hpp"
 #include "../mods/mod_loader.hpp"
+#include "cheat.hpp"
 #endif
 
 namespace ui {
@@ -256,6 +257,12 @@ void draw() {
             draw_mods_tab();
             ImGui::EndTabItem();
         }
+#ifndef MODMENU_PREVIEW
+        if (ImGui::BeginTabItem("修改器")) {
+            cheat::draw_tab();
+            ImGui::EndTabItem();
+        }
+#endif
 
         // Mod 面板
         std::vector<std::pair<std::string, PanelFn>> snapshot;
