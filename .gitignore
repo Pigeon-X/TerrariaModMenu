@@ -1,0 +1,14 @@
+# 构建产物
+build/
+dist/
+*.o
+*.dylib
+
+# 第三方源码（用 scripts/fetch_deps.sh 拉）
+third_party/
+
+# 系统/编辑器垃圾
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

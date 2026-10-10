@@ -1,0 +1,59 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 环境信息
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+
+      - name: 拉第三方依赖
+        run: bash scripts/fetch_deps.sh
+
+      - name: 构建通用版
+        run: make generic
+
+      - name: 构建专用版
+        run: make specific
+
+      - name: 收集产物
+        run: |
+          mkdir -p out
+          cp build/TerrariaModMenu.dylib out/TerrariaModMenu.dylib
+          file out/TerrariaModMenu.dylib
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TerrariaModMenu-dylib
+          path: out/
+          if-no-files-found: error
+
+      # 顺便把产物回传到仓库的 dist/ 目录，
+      # 这样不用登录 GitHub 下载 artifact 也能直接 git pull 取到 dylib。
+      - name: 回传产物到 dist/
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p dist
+          cp build/TerrariaModMenu.dylib dist/TerrariaModMenu.dylib
+          ls -l dist/
+          git config user.name "modmenu-ci"
+          git config user.email "modmenu-ci@local"
+          git add -f dist/TerrariaModMenu.dylib
+          if git diff --cached --quiet; then
+            echo "产物没变化，跳过提交"
+          else
+            git commit -m "ci: 更新 TerrariaModMenu.dylib [skip ci]"
+            git push
+          fi
