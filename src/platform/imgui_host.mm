@@ -117,13 +117,15 @@ void setup_fonts(ImGuiIO& io) {
     auto cands = font_candidates();
     mm::logf("ImGui 字体：候选 %zu 个", cands.size());
     int tried = 0;
+    const int kMaxTry = 6;               // 别扫太多，避免长时间占用主线程
     for (const auto& path : cands) {
+        if (tried >= kMaxTry) break;
         @autoreleasepool {
             if (![[NSFileManager defaultManager] fileExistsAtPath:@(path.c_str())]) continue;
         }
         ++tried;
-        // .ttc 是字体集合，逐个下标试
-        for (int idx = 0; idx < 4; ++idx) {
+        // .ttc 是字体集合；只试下标 0 和 1（再大容易踩 stbtt 的断言）
+        for (int idx = 0; idx < 2; ++idx) {
             // 关键：字形要等 Build 之后才有，所以每个候选都建一次图集再判定
             io.Fonts->Clear();
             ImFontConfig cfg;

@@ -19,8 +19,10 @@ CC       := $(shell xcrun -sdk iphoneos -f clang)
 ARCH     := arm64
 MIN_IOS  := 15.0
 
+# -DNDEBUG 很关键：ImGui 的 IM_ASSERT 默认映射到 assert()，
+# 没定义 NDEBUG 的话 release 包里断言依然生效，一旦触发就直接 abort（表现为闪退）。
 COMMON   := -arch $(ARCH) -isysroot $(SDKROOT) -miphoneos-version-min=$(MIN_IOS) \
-            -O2 -fvisibility=hidden -Wall -Wno-unused-parameter
+            -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter
 
 CXXFLAGS := -std=c++17 -fobjc-arc $(COMMON) -Isrc
 CFLAGS   := $(COMMON) -Isrc
