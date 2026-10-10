@@ -55,6 +55,10 @@ ModState* state_of(lua_State* L) {
     return ms;
 }
 
+// 元表名 / userdata 类型（提前声明：下面的 UI 区块之后要用到）
+const char* MT_METHOD = "mm.NativeMethod";
+struct LuaMethod { il2::Method* m; };
+
 // ---------------------------------------------------------------------------
 // 日志
 // ---------------------------------------------------------------------------
@@ -472,7 +476,7 @@ int ui_table_setup_column(lua_State* L) {
 }
 int ui_table_headers_row(lua_State*) { ImGui::TableHeadersRow(); return 0; }
 int ui_table_next_row(lua_State*) { ImGui::TableNextRow(); return 0; }
-int ui_table_next_column(lua_State*) { lua_pushboolean(L, ImGui::TableNextColumn()); return 1; }
+int ui_table_next_column(lua_State* L) { lua_pushboolean(L, ImGui::TableNextColumn()); return 1; }
 int ui_end_table(lua_State*) { ImGui::EndTable(); return 0; }
 
 int ui_begin_tab_bar(lua_State* L) {
@@ -593,12 +597,10 @@ int native_hook(lua_State* L) {
 // Native：按名反射
 // ---------------------------------------------------------------------------
 const char* MT_CLASS = "mm.NativeClass";
-const char* MT_METHOD = "mm.NativeMethod";
 const char* MT_FIELD = "mm.NativeField";
 const char* MT_OBJECT = "mm.NativeObject";
 
 struct LuaClass { il2::Class* k; };
-struct LuaMethod { il2::Method* m; };
 struct LuaField { il2::Field* f; };
 struct LuaObject { uint32_t handle; };   // gchandle，防 GC 回收
 
