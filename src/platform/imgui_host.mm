@@ -297,39 +297,18 @@ void render_overlay() {
         const bool interacting = ui::visible() || g_touching.load();
         if (!interacting && (t_now - g_last_present) < kIdleInterval) return;
 
-        // ---- 叠加层只覆盖 UI 实际占用的区域 --------------------------------
-        // 全屏 layer 每帧清理+绘制是性能杀手；缩到实际区域后开销从"一整屏"
-        // 变成"一小块"（球只要 108x108）。
+        // 旋转/尺寸变化时把叠加层对齐到整屏
+        // （曾试过"只覆盖 UI 实际区域"，但在 Metal 后端上坐标平移没生效，
+        //   导致界面被画到可视区外，先回退成全屏。）
         {
-            float bx = 0, by = 0, bw = 0, bh = 0;
-            ui::bounds(&bx, &by, &bw, &bh);
-            const float margin = 16.0f;
-            const float grid = 64.0f;
-            float x0 = floorf((bx - margin) / grid) * grid;
-            float y0 = floorf((by - margin) / grid) * grid;
-            float x1 = ceilf((bx + bw + margin) / grid) * grid;
-            float y1 = ceilf((by + bh + margin) / grid) * grid;
             CGSize scr = g_window.bounds.size;
-            float sw = (float)(scr.width * g_scale), sh = (float)(scr.height * g_scale);
-            if (x0 < 0) x0 = 0;
-            if (y0 < 0) y0 = 0;
-            if (x1 > sw) x1 = sw;
-            if (y1 > sh) y1 = sh;
-            if (x1 <= x0 || y1 <= y0) return;
-            float nw = x1 - x0, nh = y1 - y0;
-
-            // 交互中只增不减（避免拖动时每帧重建 drawable 反而更卡）；空闲时才收缩
-            bool changed = false;
-            if (g_rect_w <= 0) {
-                changed = true;
-            } else if (nw > g_rect_w + 1 || nh > g_rect_h + 1 ||
-                       x0 < g_rect_x - 1 || y0 < g_rect_y - 1 ||
-                       x0 + nw > g_rect_x + g_rect_w + 1 || y0 + nh > g_rect_y + g_rect_h + 1) {
-                changed = true;                       // 装不下了 -> 长大
-            } else if (!interacting && (g_rect_w > nw + 128 || g_rect_h > nh + 128)) {
-                changed = true;                       // 明显浪费 -> 空闲时收缩
+            if (scr.width > 0) {
+                float sw = (float)(scr.width * g_scale), sh = (float)(scr.height * g_scale);
+                if (fabsf(g_rect_w - sw) > 1.f || fabsf(g_rect_h - sh) > 1.f) {
+                    apply_layer_rect(0, 0, sw, sh);
+                    mm::logf("叠加层尺寸更新 -> %.0fx%.0f", sw, sh);
+                }
             }
-            if (changed) apply_layer_rect(x0, y0, nw, nh);
         }
 
         id<CAMetalDrawable> drawable = [g_layer nextDrawable];
@@ -359,14 +338,6 @@ void render_overlay() {
         ImGui::NewFrame();
         mods::tick();
         ui::draw();
-        // 关键：把主视口原点/尺寸改成本帧 layer 的范围，
-        // ImGui::Render 会把它写进 draw_data->DisplayPos，
-        // 于是界面仍用屏幕绝对坐标绘制，落点却只在这一小块 layer 上。
-        {
-            ImGuiViewport* vp = ImGui::GetMainViewport();
-            vp->Pos = ImVec2(g_rect_x, g_rect_y);
-            vp->Size = ImVec2(g_rect_w, g_rect_h);
-        }
         ImGui::Render();
 
         id<MTLCommandBuffer> cb = [g_queue commandBuffer];
