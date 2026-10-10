@@ -8,6 +8,11 @@
 //
 // 全程不依赖任何硬编码偏移 —— 游戏更新后符号名不变就照常能用。
 //
+
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
 namespace il2 {
 
 using Domain   = void;
@@ -44,8 +49,8 @@ const char* last_missing();
 #define IL2_WRAP(ret, cname, symbol, params, args)                    \
     inline ret cname params {                                          \
         using F = ret (*) params;                                      \
-        static F f = reinterpret_cast<F>(api(symbol));                 \
-        return f ? f args : (ret)0;                                    \
+        static F mm_resolved = reinterpret_cast<F>(api(symbol));       \
+        return mm_resolved ? mm_resolved args : (ret)0;                \
     }
 
 // 域 / 线程

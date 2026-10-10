@@ -11,7 +11,7 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
-#import <QuartzCore/CADisplayLink.h>
+#import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
 
 #include "imgui.h"
@@ -41,7 +41,8 @@ template <typename T>
 void swizzle(Class cls, SEL sel, IMP new_imp, T* out_old) {
     Method m = class_getInstanceMethod(cls, sel);
     if (!m) return;
-    if (out_old) *out_old = method_getImplementation(m);
+    // IMP 不能隐式转成具体函数指针，必须显式转
+    if (out_old) *out_old = reinterpret_cast<T>(method_getImplementation(m));
     method_setImplementation(m, new_imp);
 }
 
