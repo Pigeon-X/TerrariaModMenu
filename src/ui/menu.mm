@@ -22,7 +22,7 @@ std::mutex g_mutex;
 bool g_visible = true;
 void* g_ball_tex = nullptr;
 ImVec2 g_ball_pos(60, 200);          // 球的位置（可拖动）
-constexpr float kBallSize = 150.0f;  // 球的显示尺寸（像素）
+constexpr float kBallSize = 108.0f;  // 球的显示尺寸（像素）
 std::deque<std::string> g_log;
 std::vector<std::pair<std::string, PanelFn>> g_panels;
 char g_filter[128] = "";

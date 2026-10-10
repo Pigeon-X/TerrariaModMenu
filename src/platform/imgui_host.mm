@@ -334,7 +334,9 @@ void (*g_orig_send_event)(id, SEL, UIEvent*) = nullptr;
 
 void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
     BOOL swallow = NO;
-    if (ui::visible() && event) {
+    // 注意：这里不能判断 ui::visible()！
+    // 球（收起）状态下也必须把触摸喂给 ImGui，否则球点不开、也拖不动。
+    if (event) {
         for (UITouch* t in [event allTouches]) {
             CGPoint p = [t locationInView:self];
             g_touch_x.store((float)(p.x * g_scale));
