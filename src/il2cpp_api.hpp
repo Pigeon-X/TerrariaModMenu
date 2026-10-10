@@ -84,7 +84,10 @@ IL2_WRAP(uint32_t, method_get_param_count, "il2cpp_method_get_param_count",
          (Method* m), (m))
 IL2_WRAP(Class*, method_get_class, "il2cpp_method_get_class", (Method* m), (m))
 IL2_WRAP(Type*, method_get_return_type, "il2cpp_method_get_return_type", (Method* m), (m))
-IL2_WRAP(bool, method_is_static, "il2cpp_method_is_static", (Method* m), (m))
+// 注意：IL2CPP 没有 il2cpp_method_is_static 这个符号（实测该包里不存在），
+// 正确做法是取 flags 再自己判 METHOD_ATTRIBUTE_STATIC。
+IL2_WRAP(uint32_t, method_get_flags, "il2cpp_method_get_flags",
+         (Method* m, uint32_t* iflags), (m, iflags))
 IL2_WRAP(Object*, runtime_invoke, "il2cpp_runtime_invoke",
          (Method* m, void* obj, void** params, void** exc), (m, obj, params, exc))
 
@@ -127,6 +130,13 @@ IL2_WRAP(void*, object_unbox, "il2cpp_object_unbox", (Object* o), (o))
 // ---------------------------------------------------------------------------
 
 // Il2CppString 布局是稳定的：{ object(16B) | int32 length | char16 chars[] }
+// 托管方法是否 static（METHOD_ATTRIBUTE_STATIC = 0x0010）
+inline bool method_is_static(Method* m) {
+    if (!m) return false;
+    uint32_t iflags = 0;
+    return (method_get_flags(m, &iflags) & 0x0010u) != 0;
+}
+
 inline int32_t string_length(String* s) {
     return s ? *reinterpret_cast<int32_t*>(reinterpret_cast<char*>(s) + 16) : 0;
 }
