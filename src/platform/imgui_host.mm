@@ -15,6 +15,8 @@
 #include <objc/runtime.h>
 
 #include <atomic>
+#include <cstring>
+#include <vector>
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -28,6 +30,7 @@
 #include "../mm_log.hpp"
 #include "../mods/mod_loader.hpp"
 #include "../ui/menu.hpp"
+#include "../ui/ball_texture.hpp"
 
 namespace host {
 namespace {
@@ -106,6 +109,7 @@ void setup_fonts(ImGuiIO& io) {
         ImFontGlyphRangesBuilder builder;
         builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
         builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
+        builder.AddText("✕×●○✔");          // 图标用到的几个符号
         builder.BuildRanges(&ranges);
     }
     mm::logf("ImGui 字体：字形范围共 %d 个码点", (int)ranges.Size);
@@ -142,6 +146,46 @@ void setup_fonts(ImGuiIO& io) {
     io.Fonts->AddFontDefault();
 }
 
+// ARC 下必须自己保活，否则纹理会被释放
+id<MTLTexture> g_ball_obj = nil;
+
+// 把嵌入的十六进制 RGBA 解出来，建成一张 Metal 纹理
+ImTextureID create_ball_texture(id<MTLDevice> device) {
+    const char* hex = ui::ball_texture_hex();
+    const int size = ui::kBallTextureSize;
+    const size_t want = (size_t)size * size * 4;
+    const size_t n = strlen(hex) / 2;
+    if (n != want) {
+        mm::logf("球形图标数据长度不对：%zu != %zu", n, want);
+        return nullptr;
+    }
+    std::vector<unsigned char> px(n);
+    auto hv = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return 0;
+    };
+    for (size_t i = 0; i < n; ++i) {
+        px[i] = (unsigned char)((hv(hex[i * 2]) << 4) | hv(hex[i * 2 + 1]));
+    }
+
+    MTLTextureDescriptor* desc =
+        [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                                                           width:size
+                                                          height:size
+                                                       mipmapped:NO];
+    desc.usage = MTLTextureUsageShaderRead;
+    id<MTLTexture> tex = [device newTextureWithDescriptor:desc];
+    if (!tex) return nullptr;
+    [tex replaceRegion:MTLRegionMake2D(0, 0, size, size)
+           mipmapLevel:0
+             withBytes:px.data()
+           bytesPerRow:size * 4];
+    g_ball_obj = tex;
+    return (ImTextureID)(__bridge void*)tex;
+}
+
 void init_imgui(id<MTLDevice> device) {
     if (g_imgui_ready) return;
     mm::logf("ImGui 初始化：CreateContext ...");
@@ -165,6 +209,15 @@ void init_imgui(id<MTLDevice> device) {
         mm::logf("ImGui_ImplMetal_Init 失败");
         return;
     }
+
+    // 球形图标：把嵌入的 RGBA 数据建成一张 Metal 纹理交给 UI
+    if (auto* ball = create_ball_texture(device)) {
+        ui::set_ball_texture((void*)ball);
+        mm::logf("球形图标纹理已创建 %dx%d", ui::kBallTextureSize, ui::kBallTextureSize);
+    } else {
+        mm::logf("球形图标纹理创建失败，收起状态会退化成 M 按钮");
+    }
+
     g_imgui_ready = true;
     g_last_time = CACurrentMediaTime();
     mm::logf("ImGui 初始化完成（device=%s）", [[device name] UTF8String]);

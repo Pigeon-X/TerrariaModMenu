@@ -13,6 +13,9 @@ bool visible();
 void set_visible(bool v);
 void toggle();
 
+// 球形图标纹理（ImTextureID，由 imgui_host 创建后塞进来）
+void set_ball_texture(void* tex);
+
 // 往控制台日志里追加一行（线程安全）
 void log_line(const std::string& text);
 

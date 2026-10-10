@@ -20,6 +20,9 @@ namespace {
 
 std::mutex g_mutex;
 bool g_visible = true;
+void* g_ball_tex = nullptr;
+ImVec2 g_ball_pos(60, 200);          // 球的位置（可拖动）
+constexpr float kBallSize = 96.0f;   // 球的显示尺寸（像素）
 std::deque<std::string> g_log;
 std::vector<std::pair<std::string, PanelFn>> g_panels;
 char g_filter[128] = "";
@@ -123,23 +126,54 @@ void clear_panels(const std::string& name) {
     }
 }
 
+void set_ball_texture(void* tex) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_ball_tex = tex;
+}
+
 void draw() {
     if (!visible()) {
-        // 隐藏时留一个小圆钮，点一下重新打开
-        ImGui::SetNextWindowPos(ImVec2(12, 220), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(52, 52), ImGuiCond_Always);
-        ImGui::Begin("##mm_toggle", nullptr,
+        // ---- 收起状态：一个圆球，点一下展开，按住可以拖 ----
+        ImGui::SetNextWindowPos(g_ball_pos, ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(kBallSize, kBallSize), ImGuiCond_Always);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::Begin("##mm_ball", nullptr,
                      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoSavedSettings |
+                     ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-        if (ImGui::Button("M", ImVec2(36, 36))) set_visible(true);
+
+        bool clicked = false;
+        if (g_ball_tex) {
+            clicked = ImGui::ImageButton("##ball", (ImTextureID)g_ball_tex,
+                                         ImVec2(kBallSize, kBallSize),
+                                         ImVec2(0, 0), ImVec2(1, 1),
+                                         ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1));
+        } else {
+            clicked = ImGui::Button("M", ImVec2(kBallSize, kBallSize));
+        }
+        // 拖动球体（把鼠标位移累加到位置）
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+            ImVec2 d = ImGui::GetIO().MouseDelta;
+            g_ball_pos.x += d.x;
+            g_ball_pos.y += d.y;
+            ImVec2 disp = ImGui::GetIO().DisplaySize;
+            if (g_ball_pos.x < 0) g_ball_pos.x = 0;
+            if (g_ball_pos.y < 0) g_ball_pos.y = 0;
+            if (g_ball_pos.x > disp.x - kBallSize) g_ball_pos.x = disp.x - kBallSize;
+            if (g_ball_pos.y > disp.y - kBallSize) g_ball_pos.y = disp.y - kBallSize;
+        }
+        if (clicked) set_visible(true);
+
         ImGui::End();
+        ImGui::PopStyleVar();
         return;
     }
 
     ImGui::SetNextWindowSize(ImVec2(560, 420), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(60, 120), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(40, 120), ImGuiCond_FirstUseEver);
+    // 可缩放：给个下限，避免拖没了
+    ImGui::SetNextWindowSizeConstraints(ImVec2(320, 220), ImVec2(FLT_MAX, FLT_MAX));
     if (!ImGui::Begin("Terraria ModMenu", nullptr,
                       ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar)) {
         ImGui::End();
@@ -148,9 +182,13 @@ void draw() {
 
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("菜单")) {
-            if (ImGui::MenuItem("隐藏", "三指双击")) set_visible(false);
+            if (ImGui::MenuItem("收起成球")) set_visible(false);
             ImGui::EndMenu();
         }
+        // 右对齐的 ❌：收起回球状态
+        float btn_w = ImGui::CalcTextSize("✕").x + ImGui::GetStyle().FramePadding.x * 2;
+        ImGui::SameLine(ImGui::GetWindowWidth() - btn_w - 12.0f);
+        if (ImGui::Button("✕")) set_visible(false);
         ImGui::EndMenuBar();
     }
 
