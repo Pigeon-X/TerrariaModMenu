@@ -1,5 +1,6 @@
 main.cpp
 menu.mm
+cheat_ui.mm
 imgui.cpp
 imgui_draw.cpp
 imgui_tables.cpp
