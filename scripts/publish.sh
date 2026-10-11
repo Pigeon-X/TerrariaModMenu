@@ -54,13 +54,22 @@ else
   git --no-pager log --oneline -1
 fi
 
+# 先 rebase：上游可能被别处（比如网页上直接改）推过新提交，
+# 直接 push 会被拒成 non-fast-forward。
+if ! git pull -q --rebase origin main; then
+  echo "rebase 有冲突，先解决完再推（git status 看冲突文件）" >&2
+  exit 1
+fi
+
 echo "推送到 origin ..."
 if ! GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git push origin main; then
   cat >&2 <<'EOF'
 
-推送失败。多半是这把 SSH key 没有这个仓库的写权限：
-  GitHub → 仓库 → Settings → Deploy keys（勾 Allow write access）
-  或者加成账号级 key：Settings → SSH and GPG keys
+推送失败。常见两种原因：
+  1. 这把 SSH key 没有该仓库的写权限
+     （GitHub → 仓库 → Settings → Deploy keys 勾 Allow write access，
+       或者加成账号级 key：Settings → SSH and GPG keys）
+  2. 上游有别人的新提交，上面那句 pull --rebase 没成功
 EOF
   exit 1
 fi
