@@ -34,7 +34,7 @@ jobs:
           cl /nologo /std:c++17 /utf-8 /EHsc /O2 /MD /DNDEBUG /DMODMENU_PREVIEW ^
              /Ithird_party\imgui /Ithird_party\imgui\backends /Isrc /Isrc\ui ^
              /TP ^
-             preview\main.cpp src\ui\menu.mm ^
+             preview\main.cpp src\ui\menu.mm src\ui\cheat_ui.mm ^
              third_party\imgui\imgui.cpp third_party\imgui\imgui_draw.cpp ^
              third_party\imgui\imgui_tables.cpp third_party\imgui\imgui_widgets.cpp ^
              third_party\imgui\backends\imgui_impl_win32.cpp ^
