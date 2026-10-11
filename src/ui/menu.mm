@@ -1,10 +1,26 @@
 //
-// 菜单界面：一个悬浮窗 + 控制台日志 + 若干 Mod 面板 Tab。
+// 菜单界面：悬浮球 + 主面板。
+//
+// 面板布局对齐安卓版那套：
+//   ┌──────────────────────────────────────────┐
+//   │ [◆] Terraria Mod Menu        ●60FPS  [×] │  标题栏
+//   ├────────┬─────────────────────────────────┤
+//   │ 自身 ● │  自身                            │
+//   │ 世界   │  卡片 / 开关 / 滑条               │  左侧导航 + 内容
+//   │ 物品   │                                  │
+//   ├────────┴─────────────────────────────────┤
+//   │ ● 已连接 · 覆盖层运行中                     │  底部状态栏
+//   └──────────────────────────────────────────┘
+//
+// 渲染由 imgui_host（真机）/ preview 的宿主（Mac）负责，这里只管画什么。
 //
 #include "menu.hpp"
 
-#include <deque>
 #include <cmath>
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <deque>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -19,8 +35,11 @@
 #include "../il2cpp_api.hpp"
 #include "../mm_log.hpp"
 #include "../mods/mod_loader.hpp"
-#include "cheat.hpp"
 #endif
+
+#include "cheat.hpp"
+#include "cheat_state.hpp"
+#include "widgets.hpp"
 
 namespace ui {
 namespace {
@@ -37,14 +56,37 @@ ImVec2 g_win_size(0, 0);
 std::vector<std::pair<std::string, PanelFn>> g_panels;
 char g_filter[128] = "";
 bool g_auto_scroll = true;
+float g_ui_scale = 1.0f;
 
-void draw_log_tab() {
+int g_page = 0;                      // 左侧导航当前页
+
+// ---- 左侧导航 --------------------------------------------------------------
+constexpr int kNavCount = 9;
+const char* const kNav[kNavCount] = {
+    "自身", "世界", "实体", "物品", "多选", "网络", "日志", "脚本", "设置",
+};
+
+// ---------------------------------------------------------------------------
+// 各个页面
+// ---------------------------------------------------------------------------
+
+void draw_log_page() {
+    theme::section_header("日志", "实时输出");
+    ImGui::Spacing();
+
+    ImGui::SetNextItemWidth(-160);
     ImGui::InputTextWithHint("##filter", "过滤…", g_filter, sizeof(g_filter));
     ImGui::SameLine();
     ImGui::Checkbox("自动滚动", &g_auto_scroll);
-    ImGui::Separator();
+    ImGui::SameLine();
+    if (ImGui::Button("清空")) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_log.clear();
+    }
 
-    ImGui::BeginChild("##log", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::card_bg());
+    ImGui::PushStyleColor(ImGuiCol_Border, theme::card_edge());
+    ImGui::BeginChild("##log", ImVec2(0, 0), ImGuiChildFlags_Border);
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         for (const auto& line : g_log) {
@@ -56,71 +98,153 @@ void draw_log_tab() {
         }
     }
     ImGui::EndChild();
+    ImGui::PopStyleColor(2);
 }
 
-void draw_status_tab() {
-    ImGui::Text("IL2CPP 按名解析：%s", il2::ready() ? "就绪" : "未就绪");
-    ImGui::Text("已解析符号：%d", il2::symbol_count());
-    const char* missing = il2::last_missing();
-    if (missing && *missing) {
-        ImGui::TextWrapped("最后未解析的符号：%s", missing);
+void draw_mods_page() {
+    theme::section_header("脚本", "Lua Mod 管理");
+    ImGui::Spacing();
+
+    static bool enable_scripts = true;
+    if (theme::begin_card("##scripts", "脚本功能", 2)) {
+        theme::toggle_row("启用脚本功能", &enable_scripts, nullptr);
+        theme::text_dim("Mod 目录：%s", mods::root_dir().c_str());
     }
-    ImGui::Separator();
-    ImGui::TextWrapped("Mods 目录：Documents/Mods/");
-    ImGui::TextWrapped("日志文件：Documents/TerrariaModMenu.log");
-}
+    theme::end_card();
+    ImGui::Spacing();
 
-void draw_mods_tab() {
-    const auto& list = mods::list();
-    ImGui::Text("Mods 目录：%s", mods::root_dir().c_str());
     if (ImGui::Button("重新扫描")) mods::reload();
-    ImGui::Separator();
+    ImGui::SameLine();
+    ImGui::TextDisabled("共 %zu 个", mods::list().size());
 
-    if (list.empty()) {
-        ImGui::TextWrapped(
-            "还没有 Mod。\n"
-            "往 Documents/Mods/<任意名字>/ 里放 main.lua（可选 mod.json），"
-            "然后点上面的「重新扫描」，或者重启游戏。");
-        return;
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::card_bg());
+    ImGui::PushStyleColor(ImGuiCol_Border, theme::card_edge());
+    ImGui::BeginChild("##mods", ImVec2(0, 0), ImGuiChildFlags_Border);
+    for (const auto& m : mods::list()) {
+        ImGui::PushStyleColor(ImGuiCol_Text, m.loaded ? theme::ok_green() : theme::danger());
+        ImGui::TextUnformatted("●");
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::Text("%s v%s by %s", m.name.c_str(), m.version.c_str(), m.author.c_str());
+        if (!m.description.empty()) {
+            ImGui::Indent(20);
+            theme::text_wrapped_dim(m.description.c_str());
+            ImGui::Unindent(20);
+        }
+        if (!m.loaded && !m.error.empty()) {
+            ImGui::Indent(20);
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::danger());
+            ImGui::Text("加载失败：%s", m.error.c_str());
+            ImGui::PopStyleColor();
+            ImGui::Unindent(20);
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor(2);
+}
+
+void draw_settings_page() {
+    theme::section_header("设置", "界面与状态");
+    ImGui::Spacing();
+
+    if (theme::begin_card("##ui", "界面", 2)) {
+        ImGui::SetNextItemWidth(-120);
+        ImGui::SliderFloat("整体缩放", &g_ui_scale, 0.7f, 1.8f, "%.2fx");
+        theme::text_dim("改完下一帧生效（渲染层在 NewFrame 之前读它）");
+    }
+    theme::end_card();
+    ImGui::Spacing();
+
+    if (theme::begin_card("##status", "状态", 2)) {
+#ifdef MODMENU_PREVIEW
+        theme::text_dim("预览模式：数据是假的，只用来调界面");
+        static bool stub_ok = true;
+        theme::toggle_row("IL2CPP 按名解析", &stub_ok, "就绪");
+#else
+        const bool ok = il2::ready();
+        ImGui::PushStyleColor(ImGuiCol_Text, ok ? theme::ok_green() : theme::danger());
+        ImGui::Text("%s IL2CPP 按名解析", ok ? "●" : "●");
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::Text("已解析符号 %d 个", il2::symbol_count());
+        const char* missing = il2::last_missing();
+        if (missing && *missing) theme::text_dim("最后未解析：%s", missing);
+#endif
+    }
+    theme::end_card();
+}
+
+void draw_placeholder(const char* title, const char* note) {
+    theme::section_header(title, "开发中");
+    ImGui::Spacing();
+    if (theme::begin_card("##todo", nullptr, 3)) {
+        theme::text_wrapped_dim(note);
+    }
+    theme::end_card();
+}
+
+// ---- 标题栏 ----------------------------------------------------------------
+void draw_header() {
+    const float bs = ImGui::GetFrameHeight() * 0.92f;
+
+    // 左边那个方块图标
+    {
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(p, ImVec2(p.x + bs, p.y + bs), IM_COL32(122, 92, 240, 255), 6.0f);
+        const char* up = "^";
+        const ImVec2 ts = ImGui::CalcTextSize(up);
+        dl->AddText(ImVec2(p.x + (bs - ts.x) * 0.5f, p.y + (bs - ts.y) * 0.5f),
+                    IM_COL32(255, 255, 255, 255), up);
+        ImGui::Dummy(ImVec2(bs, bs));
     }
 
-    for (const auto& m : list) {
-        ImGui::PushID(m.name.c_str());
-        if (m.loaded) ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "● %s", m.name.c_str());
-        else ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "● %s", m.name.c_str());
-        ImGui::SameLine();
-        if (!m.version.empty()) { ImGui::TextDisabled("v%s", m.version.c_str()); ImGui::SameLine(); }
-        if (!m.author.empty()) ImGui::TextDisabled("by %s", m.author.c_str());
+    ImGui::SameLine();
+    ImGui::AlignTextToFramePadding();
+    ImGui::PushStyleColor(ImGuiCol_Text, theme::text());
+    ImGui::TextUnformatted("Terraria Mod Menu");
+    ImGui::PopStyleColor();
 
-        if (!m.description.empty()) ImGui::TextWrapped("   %s", m.description.c_str());
-        if (!m.loaded && !m.error.empty()) {
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "   加载失败：%s", m.error.c_str());
-        }
-        ImGui::PopID();
+    // 右边：FPS + 关闭
+    {
+        char fps[32];
+        snprintf(fps, sizeof(fps), "%.0f FPS", ImGui::GetIO().Framerate);
+        const float fps_w = ImGui::CalcTextSize(fps).x + ImGui::GetFrameHeight() * 0.9f;
+        const float x = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x
+                        - (bs * 1.6f) - fps_w;
+        if (x > ImGui::GetCursorPosX()) ImGui::SameLine(x);
+        else ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetIO().Framerate > 50.0f
+                                                 ? theme::ok_green() : theme::text_dim());
+        ImGui::Text("%s", fps);
+        ImGui::PopStyleColor();
+
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::danger());
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::danger());
+        if (ImGui::Button("×##close", ImVec2(bs, bs))) set_visible(false);
+        ImGui::PopStyleColor(3);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("收起成悬浮球");
     }
 }
 
 }  // namespace
 
-bool visible() {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    return g_visible;
-}
+bool visible() { return g_visible; }
 
 void set_visible(bool v) {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_visible = v;
 }
 
-void toggle() {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    g_visible = !g_visible;
-}
+void toggle() { set_visible(!visible()); }
 
 void log_line(const std::string& text) {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_log.push_back(text);
-    if (g_log.size() > 2000) g_log.pop_front();
+    while (g_log.size() > 2000) g_log.pop_front();
 }
 
 void add_panel(const std::string& name, PanelFn fn) {
@@ -136,13 +260,9 @@ void clear_panels(const std::string& name) {
     }
 }
 
-void set_ball_texture(void* tex) {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    g_ball_tex = tex;
-}
+void set_ball_texture(void* tex) { g_ball_tex = tex; }
 
-// 渲染层会在 NewFrame 之前问一次；回退版没有 UI 缩放，固定 1.0
-float ui_scale() { return 1.0f; }
+float ui_scale() { return g_ui_scale; }
 
 void bounds(float* x, float* y, float* w, float* h) {
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -155,9 +275,6 @@ void bounds(float* x, float* y, float* w, float* h) {
 }
 
 void draw() {
-#ifndef MODMENU_PREVIEW
-    // 崩溃排查用：逐段打日志（日志每行都落盘，崩前最后一行就是出事的地方）
-#endif
     if (!visible()) {
         // ---- 收起状态：一个圆球，点一下展开，按住可以拖 ----
         ImGui::SetNextWindowPos(g_ball_pos, ImGuiCond_Always);
@@ -168,8 +285,6 @@ void draw() {
                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-#ifndef MODMENU_PREVIEW
-#endif
 
         if (g_ball_tex) {
             // 不要用 ImageButton：ImGui 会先画一个按钮底色框，看起来就是方块。
@@ -201,91 +316,91 @@ void draw() {
             if (g_ball_pos.x > disp.x - kBallSize) g_ball_pos.x = disp.x - kBallSize;
             if (g_ball_pos.y > disp.y - kBallSize) g_ball_pos.y = disp.y - kBallSize;
         }
-        // 松手了，而且几乎没拖动 -> 才算"点击"
-        if (ImGui::IsItemDeactivated() && g_ball_drag.x < 16.0f && g_ball_drag.y < 16.0f) {
+        // 松手了，而且几乎没拖动 -> 才算"点击"。
+        // 阈值按球的尺寸算：原来写死 16px，在 3x 屏上只有 5pt，
+        // 手指稍微抖一下就点不开。改成球径的 30%（真机约 10pt），
+        // 滑动仍然完全不会误展开。
+        const float tap_slop = kBallSize * 0.30f;
+        if (ImGui::IsItemDeactivated() && g_ball_drag.x < tap_slop && g_ball_drag.y < tap_slop) {
             set_visible(true);
         }
 
         ImGui::End();
         ImGui::PopStyleVar();
-#ifndef MODMENU_PREVIEW
-#endif
         return;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(980, 700), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(60, 140), ImGuiCond_FirstUseEver);
-    // 可缩放：给个下限，避免拖没了
-    ImGui::SetNextWindowSizeConstraints(ImVec2(560, 380), ImVec2(FLT_MAX, FLT_MAX));
-    if (!ImGui::Begin("Terraria ModMenu", nullptr,
+    // ---- 展开状态：主面板 ----
+    theme::push_all();
+
+    // 尺寸跟着屏幕走：游戏是横屏（iPhone 上约 2622×1206 物理像素），
+    // 面板写死尺寸的话在横屏里会小得没法用。
+    {
+        const ImVec2 disp = ImGui::GetIO().DisplaySize;
+        const float w = fminf(disp.x * 0.66f, 1560.0f);
+        const float h = fminf(disp.y * 0.80f, 900.0f);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2((disp.x - w) * 0.5f, (disp.y - h) * 0.5f),
+                                ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(fminf(disp.x * 0.5f, 620.0f), 380.0f),
+                                            ImVec2(disp.x, disp.y));
+    }
+    if (!ImGui::Begin("Terraria Mod Menu", nullptr,
                       ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar)) {
         ImGui::End();
+        theme::pop_all();
         return;
     }
 
-    // 自绘标题行：左边标题（按住可拖动窗口），右边贴角的小「×」
+    draw_header();
+    ImGui::Separator();
+
+    // 中间：左边导航 + 右边内容
+    const float footer_h = ImGui::GetFrameHeightWithSpacing() + 4.0f;
+    const float mid_h = ImGui::GetContentRegionAvail().y - footer_h;
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::sidebar_bg());
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+    // 侧栏宽度跟着字号走（真机字号是预览器的两倍多）
+    const float nav_w = ImGui::GetFontSize() * 5.6f;
+    ImGui::BeginChild("##nav", ImVec2(nav_w, mid_h), ImGuiChildFlags_Border);
     {
-        const float bs = ImGui::GetFrameHeight() * 0.85f;  // 小一点，别抢功能区的视线
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Terraria ModMenu");
-        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
-            ImVec2 d = ImGui::GetIO().MouseDelta;
-            ImVec2 p = ImGui::GetWindowPos();
-            ImGui::SetWindowPos(ImVec2(p.x + d.x, p.y + d.y));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
+        for (int i = 0; i < kNavCount; ++i) {
+            if (theme::nav_item(kNav[i], g_page == i)) g_page = i;
         }
-
-        const float x = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - bs;
-        if (x > ImGui::GetCursorPosX()) {
-            ImGui::SameLine(x);
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.62f, 0.16f, 0.18f, 0.90f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.92f, 0.26f, 0.28f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.60f, 0.12f, 0.14f, 1.0f));
-            if (ImGui::Button("×", ImVec2(bs, bs))) set_visible(false);
-            ImGui::PopStyleColor(3);
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("收起成悬浮球");
-        }
-        ImGui::Separator();
+        ImGui::PopStyleVar();
     }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
 
-    if (ImGui::BeginTabBar("##tabs")) {
-        if (ImGui::BeginTabItem("日志")) {
-            draw_log_tab();
-            ImGui::EndTabItem();
+    ImGui::SameLine();
+    ImGui::BeginChild("##content", ImVec2(0, mid_h), ImGuiChildFlags_None);
+    {
+        switch (g_page) {
+            case 0: cheat::draw_self_page(); break;
+            case 1: cheat::draw_world_page(); break;
+            case 2: draw_placeholder("实体", "NPC / 怪物列表、生成、一键清理。\n"
+                                             "要遍历 Main.npc 数组，属于下一批（B 档）。"); break;
+            case 3: cheat::draw_item_page(); break;
+            case 4: draw_placeholder("多选", "批量操作（多人模式）。");
+                    break;
+            case 5: draw_placeholder("网络", "抓包：hook NetMessage 收发。属于 B 档。"); break;
+            case 6: draw_log_page(); break;
+            case 7: draw_mods_page(); break;
+            default: draw_settings_page(); break;
         }
-        if (ImGui::BeginTabItem("状态")) {
-            draw_status_tab();
-            ImGui::EndTabItem();
-        }
-        if (ImGui::BeginTabItem("Mods")) {
-            draw_mods_tab();
-            ImGui::EndTabItem();
-        }
-#ifndef MODMENU_PREVIEW
-        if (ImGui::BeginTabItem("修改器")) {
-            cheat::draw_tab();
-            ImGui::EndTabItem();
-        }
-#endif
-
-        // Mod 面板
-        std::vector<std::pair<std::string, PanelFn>> snapshot;
-        {
-            std::lock_guard<std::mutex> lock(g_mutex);
-            snapshot = g_panels;
-        }
-        for (auto& [name, fn] : snapshot) {
-            if (ImGui::BeginTabItem(name.c_str())) {
-                if (fn) {
-                    // 面板内部出错不能把整帧带崩
-                    try { fn(); } catch (...) { ImGui::TextDisabled("面板出错"); }
-                } else {
-                    ImGui::TextDisabled("（空面板）");
-                }
-                ImGui::EndTabItem();
-            }
-        }
-        ImGui::EndTabBar();
     }
+    ImGui::EndChild();
+
+    // 底部状态栏
+    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Text, theme::ok_green());
+    ImGui::TextUnformatted("●");
+    ImGui::PopStyleColor();
+    ImGui::SameLine();
+    theme::text_dim("已连接 · 覆盖层运行中");
 
     ImGui::End();
 
@@ -295,6 +410,8 @@ void draw() {
         g_win_pos = ImGui::GetWindowPos();
         g_win_size = ImGui::GetWindowSize();
     }
+
+    theme::pop_all();
 }
 
 }  // namespace ui

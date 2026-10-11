@@ -1,5 +1,6 @@
 # 构建产物
 build/
+build-sim/          # make sim 的产物目录（模拟器版，跟真机版分开）
 dist/
 *.o
 *.dylib

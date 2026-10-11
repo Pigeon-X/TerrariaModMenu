@@ -1,4 +1,5 @@
 #include "cheat.hpp"
+#include "cheat_state.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -35,15 +36,7 @@ il2::Field* f_eclipse; il2::Field* f_rain; il2::Field* f_sandStorm;
 il2::Field* f_windSpeed; il2::Field* f_hardMode;
 il2::Field* f_mouseX; il2::Field* f_mouseY;
 
-// ---- 开关 ------------------------------------------------------------------
-bool c_god = false, c_infMana = false, c_noFall = false, c_water = false;
-bool c_lava = false, c_invis = false, c_speed = false, c_fly = false, c_defense = false;
-float v_speed = 2.0f;
-bool c_day = false, c_night = false, c_freezeTime = false;
-bool c_rain = false, c_sand = false, c_wind = false, c_bloodMoon = false, c_eclipse = false;
-bool c_hardMode = false;
-int  v_itemId = 1, v_itemCount = 99;
-char v_itemSearch[64] = "";
+// 开关状态在 cheat_state.hpp（界面和真机共用同一份）
 
 // ---- 小工具 ----------------------------------------------------------------
 float read_f(il2::Object* o, il2::Field* f, bool isStatic, float def = 0) {
@@ -223,7 +216,6 @@ void load_state() {
     v_itemCount = cfg::get_int("item.count", 99);
 }
 
-namespace {
 
 // 给玩家背包塞物品：用 Item.SetDefaults 初始化那块内存
 void give_item(int id, int count) {
@@ -264,86 +256,6 @@ void give_item(int id, int count) {
     il2::Field* fStack = il2::class_get_field_from_name(gItem, "stack");
     if (fStack) *reinterpret_cast<int32_t*>(target + il2::field_get_offset(fStack)) = count;
     mm::logf("修改器：已放入物品 id=%d x%d（槽位 %d）", id, count, slot);
-}
-
-}  // namespace
-
-void draw_tab() {
-    if (!gReady && !init()) {
-        ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "修改器不可用（IL2CPP 未就绪或类名不匹配）");
-        return;
-    }
-    il2::Object* p = me();
-    ImGui::Text("当前玩家：%s", p ? "已锁定" : "未进入世界");
-    ImGui::Separator();
-
-    if (ImGui::CollapsingHeader("自身", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Checkbox("无敌（免疫 + 生命拉满）", &c_god);
-        ImGui::Checkbox("无限魔力", &c_infMana);
-        ImGui::Checkbox("摔落无伤", &c_noFall);
-        ImGui::Checkbox("水下呼吸", &c_water);
-        ImGui::Checkbox("岩浆免疫", &c_lava);
-        ImGui::Checkbox("隐身", &c_invis);
-        ImGui::Checkbox("防御/减伤拉满", &c_defense);
-        ImGui::Checkbox("移动速度倍率", &c_speed);
-        if (c_speed) ImGui::SliderFloat("速度", &v_speed, 1.0f, 10.0f, "%.1f");
-        ImGui::Checkbox("无限飞行时长", &c_fly);
-    }
-    if (ImGui::CollapsingHeader("世界")) {
-        ImGui::Checkbox("困难模式", &c_hardMode);
-        ImGui::Checkbox("血月", &c_bloodMoon);
-        ImGui::Checkbox("日食", &c_eclipse);
-        ImGui::Checkbox("下雨", &c_rain);
-        ImGui::SameLine(); ImGui::Checkbox("沙尘暴", &c_sand);
-        ImGui::Checkbox("刮风", &c_wind);
-        ImGui::Checkbox("时间快进到白天", &c_day);
-        ImGui::SameLine(); ImGui::Checkbox("黑夜", &c_night);
-        ImGui::Checkbox("冻结时间", &c_freezeTime);
-    }
-    if (ImGui::CollapsingHeader("物品", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::InputInt("物品 ID", &v_itemId, 1, 10);
-        ImGui::InputInt("数量", &v_itemCount, 1, 100);
-        if (ImGui::Button("放入背包", ImVec2(160, 0))) give_item(v_itemId, v_itemCount);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("按 Item ID 直接塞进背包第一个空槽");
-    }
-}
-
-// ---- A 档：物品生成器 ------------------------------------------------------
-void draw_item_page() {
-    if (!gd::ready() && !gd::init()) {
-        ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "物品表不可用（Lang.GetItemNameValue 没解析到）");
-        return;
-    }
-    static char search[64] = "";
-    static int count = 1;
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f);
-    ImGui::InputTextWithHint("##isearch", "搜索物品名或 ID", search, sizeof(search));
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 20);
-    ImGui::InputInt("数量##icount", &count, 1, 100);
-
-    const auto& tbl = gd::item_table();
-    ImGui::TextDisabled("共 %zu 项，点名字直接放进背包", tbl.size());
-    ImGui::Separator();
-
-    ImGui::BeginChild("##ilist", ImVec2(0, 0));
-    int shown = 0;
-    std::string q = search;
-    for (const auto& kv : tbl) {
-        if (!q.empty()) {
-            bool hit = kv.second.find(q) != std::string::npos ||
-                       std::to_string(kv.first).rfind(q, 0) == 0;
-            if (!hit) continue;
-        }
-        ImGui::PushID(kv.first);
-        char label[160];
-        snprintf(label, sizeof(label), "%s   #%d", kv.second.c_str(), kv.first);
-        if (ImGui::Selectable(label)) give_item(kv.first, count);
-        ImGui::PopID();
-        if (++shown >= 300) { ImGui::TextDisabled("…（只显示前 300 条，细化搜索）"); break; }
-    }
-    ImGui::EndChild();
 }
 
 }  // namespace cheat

@@ -53,3 +53,44 @@ inline const std::string& root_dir() {
 inline void reload() {}
 
 }  // namespace mods
+
+// ---- 假的物品/NPC/Buff 表（真机上这些来自游戏的 Lang 反射）------------------
+namespace gd {
+inline bool init() { return true; }
+inline bool ready() { return true; }
+
+inline const std::vector<std::pair<int, std::string>>& item_table() {
+    static const std::vector<std::pair<int, std::string>> v = [] {
+        const char* names[] = {
+            "铜短剑", "铁短剑", "银短剑", "金短剑", "铂金短剑", "木剑",
+            "仙人掌剑", "铜镐", "铁镐", "银镐", "金镐", "铂金镐",
+            "铜斧", "铁斧", "银斧", "金斧", "铂金斧", "木弓",
+            "红药水", "蓝药水", "魔法水晶", "生命水晶", "星星雕像", "地牢钥匙",
+            "天使之翼", "恶魔之翼", "熔岩靴", "赫尔墨斯靴", "附魔剑", "村正",
+            "光之枪", "星怒", "附魔回旋镖", "土块", "石块", "木材",
+        };
+        std::vector<std::pair<int, std::string>> out;
+        int id = 1;
+        for (const char* n : names) out.emplace_back(id++, n);
+        return out;
+    }();
+    return v;
+}
+
+inline const std::vector<std::pair<int, std::string>>& npc_table() {
+    static const std::vector<std::pair<int, std::string>> v = {};
+    return v;
+}
+inline const std::vector<std::pair<int, std::string>>& buff_table() {
+    static const std::vector<std::pair<int, std::string>> v = {};
+    return v;
+}
+inline std::string item_name(int) { return {}; }
+inline std::string npc_name(int) { return {}; }
+inline std::string buff_name(int) { return {}; }
+}  // namespace gd
+
+// 预览器里"给物品"是空操作（真机上会真的写进背包）
+namespace cheat {
+inline void give_item(int, int) {}
+}  // namespace cheat

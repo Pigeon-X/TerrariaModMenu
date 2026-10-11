@@ -3,6 +3,7 @@
 //       启动 Lua 宿主与 Mod 加载器。
 //
 #include <unistd.h>
+#include <cstdlib>
 
 #include <mach-o/dyld.h>
 #include <dlfcn.h>
@@ -153,6 +154,31 @@ static void modmenu_entry() {
     _dyld_register_func_for_add_image(image_added);
 
     prepare_mods_dir();
+
+#ifdef MODMENU_SIMHOST
+    // ------------------------------------------------------------------
+    // 模拟器宿主模式（MODE=sim）：这里根本没有 UnityFramework、也没有 IL2CPP。
+    // 直接在主线程把渲染层立起来，用来在模拟器里验证
+    // Metal 叠加层 / 悬浮球拖拽 / 图标纹理 / 中文字体。
+    // 依赖 IL2CPP 的东西（修改器、反射）会自己降级成 no-op。
+    // ------------------------------------------------------------------
+    mm::logf("模拟器宿主模式：跳过等待 IL2CPP，直接启动渲染层");
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (host::start()) {
+            mm::logf("界面已启动（模拟器宿主模式）");
+            // 模拟器里没法方便地"点一下"，用环境变量直接把菜单展开，
+            // 方便截图检查完整界面（只有 MODMENU_SIMHOST 才会编到这段）。
+            if (getenv("MODMENU_SIM_START_OPEN")) {
+                ui::set_visible(true);
+                mm::logf("MODMENU_SIM_START_OPEN：启动即展开菜单");
+            }
+        } else {
+            mm::logf("界面启动失败，详见上面的日志");
+        }
+        mods::reload();
+    });
+    return;
+#endif
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
         mm::logf("诊断：后台等待线程已启动");

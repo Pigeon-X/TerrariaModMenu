@@ -12,16 +12,38 @@ NAME     := TerrariaModMenu
 BUILD    := build
 MODE     ?= generic
 
+# 这三项允许从外面覆盖（scripts/build_ios_local.sh 会传进来）。
+# 判断写这么啰嗦是因为 CXX/CC 在 make 里有内置默认值，origin 是 "default"，
+# 不能简单用 ?= —— 那样会保留 make 自带的 g++。
+# 另外：没同意 Xcode 许可协议时 xcrun 不可用，外面传进来就能照常编译。
+ifeq ($(filter command line environment,$(origin SDKROOT)),)
 SDKROOT  := $(shell xcrun --sdk iphoneos --show-sdk-path)
+endif
+ifeq ($(filter command line environment,$(origin CXX)),)
 CXX      := $(shell xcrun -sdk iphoneos -f clang++)
+endif
+ifeq ($(filter command line environment,$(origin CC)),)
 CC       := $(shell xcrun -sdk iphoneos -f clang)
+endif
 
 ARCH     := arm64
 MIN_IOS  := 15.0
 
+# ---- 平台 ------------------------------------------------------------------
+# MODE=sim：编 iOS **模拟器** 版，给 simhost 壳 App 用（scripts/build_simhost.sh）。
+#   产物名带 -sim 后缀，免得把真机版的 build/TerrariaModMenu.dylib 覆盖掉。
+ifeq ($(MODE),sim)
+  NAME           := TerrariaModMenu-sim
+  BUILD          := build-sim
+  PLATFORM_FLAGS := -mios-simulator-version-min=$(MIN_IOS)
+else
+  NAME           := TerrariaModMenu
+  PLATFORM_FLAGS := -miphoneos-version-min=$(MIN_IOS)
+endif
+
 # -DNDEBUG 很关键：ImGui 的 IM_ASSERT 默认映射到 assert()，
 # 没定义 NDEBUG 的话 release 包里断言依然生效，一旦触发就直接 abort（表现为闪退）。
-COMMON   := -arch $(ARCH) -isysroot $(SDKROOT) -miphoneos-version-min=$(MIN_IOS) \
+COMMON   := -arch $(ARCH) -isysroot $(SDKROOT) $(PLATFORM_FLAGS) \
             -O2 -DNDEBUG -fvisibility=hidden -Wall -Wno-unused-parameter
 
 CXXFLAGS := -std=c++17 -fobjc-arc $(COMMON) -Isrc
@@ -35,6 +57,9 @@ LDFLAGS  := $(COMMON) -dynamiclib \
 ifeq ($(MODE),specific)
   CXXFLAGS += -DMODMENU_SPECIFIC=1
   $(info [ModMenu] 构建：专用版（含偏移表）)
+else ifeq ($(MODE),sim)
+  CXXFLAGS += -DMODMENU_SIMHOST=1
+  $(info [ModMenu] 构建：模拟器宿主版（无 IL2CPP，直接起渲染层）)
 else
   $(info [ModMenu] 构建：通用版（纯按名解析）)
 endif
@@ -69,7 +94,7 @@ OBJ_CPP := $(patsubst %,$(BUILD)/%.o,$(SRC_CPP))
 OBJ_C   := $(patsubst %.c,$(BUILD)/c/%.lo,$(SRC_C))
 OBJ     := $(OBJ_CPP) $(OBJ_C)
 
-.PHONY: all generic specific clean
+.PHONY: all generic specific sim clean
 
 all: $(BUILD)/$(NAME).dylib
 
@@ -78,6 +103,9 @@ generic:
 
 specific:
 	@$(MAKE) --no-print-directory MODE=specific all
+
+sim:
+	@$(MAKE) --no-print-directory MODE=sim all
 
 $(BUILD)/$(NAME).dylib: $(OBJ)
 	@mkdir -p $(dir $@)

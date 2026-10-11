@@ -17,10 +17,17 @@ bool active();
 // 画「修改器」标签页
 void draw_tab();
 
+// 修改器的分页（新版界面按安卓那套拆成左侧导航的几页）
+void draw_self_page();     // 自身：玩家状态 / 战斗 / 移动
+void draw_world_page();    // 世界：时间 / 事件
+
 // 配置持久化（C 档）
 void load_state();
 
 // A 档：物品生成器（搜索 + 点击放入背包）
 void draw_item_page();
+
+// 直接给物品（放进背包第一个空槽）
+void give_item(int id, int count);
 
 }  // namespace cheat

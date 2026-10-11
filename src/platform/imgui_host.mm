@@ -47,6 +47,11 @@ float g_font_px = 48.0f;      // 实际字号（像素），按屏幕缩放算�
 double g_last_present = 0;
 constexpr double kIdleInterval = 0.20;   // 空闲时最多 5 帧/秒
 
+// 「待重画」标记。悬浮球是静态图：画面画上去之后就留在叠加层上，
+// 只要没变化就没必要每帧清屏重画（全屏 clear + 绘制在真机上很贵）。
+// 任何触摸、以及刚启动时置真；画完一帧且手离开了就清掉。
+std::atomic<bool> g_dirty{true};
+
 
 CAMetalLayer* g_layer = nil;
 id<MTLCommandQueue> g_queue = nil;
@@ -300,18 +305,27 @@ void render_overlay() {
         }
         if (g_layer.hidden) g_layer.hidden = NO;
         // ------------------------------------------------------------------
-        // 按需渲染：菜单收起、也没在触摸时，降到 5 帧/秒的心跳。
-        // 叠加层是全屏的，每帧清理+绘制会明显吃掉游戏帧率，这一步很关键。
+        // 按需渲染。叠加层是全屏的，每帧 clear + 绘制会实打实吃掉游戏帧率，
+        // 所以这里分三档，尽量少画：
+        //
+        //   菜单开着 / 正在触摸 -> 满帧（跟手优先，手感不能省）
+        //   修改器开着但菜单收起 -> 15fps（要每帧写字段，但不需要 60）
+        //   什么都不动           -> **一帧都不画**（直接跳过整帧）
+        //
+        // 最后一档是关键：悬浮球是静态图，画上去之后画面就留在 layer 上了，
+        // 没变化时重画纯属浪费（全屏 clear 尤其贵）。所以只在
+        // 「有触摸」或「待重画」时才画，画完就把脏标记清掉。
+        //   ⚠️ 修改器开着的时候不能跳 —— cheat::tick() 是靠每帧驱动的。
         // ------------------------------------------------------------------
-        // ---- D 档：分级帧率 ----
-        //   菜单开着 / 正在触摸 -> 满帧（跟手优先）
-        //   只有修改器开着       -> 15fps（要持续写字段，但不需要 60）
-        //   什么都不动           -> 5fps 心跳
         const double t_now = CACurrentMediaTime();
         const bool touching = g_touching.load();
-        const bool interacting = ui::visible() || touching;
+        const bool menu_open = ui::visible();
+        const bool cheats = cheat::active();
+
+        if (!menu_open && !touching && !cheats && !g_dirty.load()) return;
+
         double interval = 0.0;
-        if (!interacting) interval = cheat::active() ? (1.0 / 15.0) : kIdleInterval;
+        if (!menu_open && !touching) interval = cheats ? (1.0 / 15.0) : 0.0;
         if (interval > 0 && (t_now - g_last_present) < interval) return;
 
         // 旋转/尺寸变化时把叠加层对齐到整屏
@@ -372,6 +386,8 @@ void render_overlay() {
                      (unsigned long)drawable.texture.pixelFormat);
         }
         g_last_present = t_now;
+        // 手已经离开、菜单也收着 -> 这一帧就是最终画面，之后就不必再画了
+        if (!menu_open && !touching) g_dirty.store(false);
     }
 }
 
@@ -383,7 +399,10 @@ void (*g_orig_send_event)(id, SEL, UIEvent*) = nullptr;
 void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
     BOOL swallow = NO;
     // 一有触摸就立刻恢复满帧渲染（否则拖球会卡）
-    if (event && [event allTouches].count) g_last_present = 0;
+    if (event && [event allTouches].count) {
+        g_last_present = 0;
+        g_dirty.store(true);      // 有触摸 -> 必须重画
+    }
     // 注意：这里不能判断 ui::visible()！
     // 球（收起）状态下也必须把触摸喂给 ImGui，否则球点不开、也拖不动。
     if (event) {
@@ -469,6 +488,27 @@ bool start() {
     ui::set_visible(false);      // 首次进入直接是悬浮球，玩家自己点开
     start_display_link();
     mm::logf("渲染层挂载完成，等第一帧 ...");
+
+    // 因为我们空闲时**一帧都不画**，画面是留在叠加层上的；
+    // 有两种情况系统会把画面弄没/弄错，得手动标脏让它重画一次：
+    //   · 切后台再回来（layer 可能被回收）
+    //   · 转屏（尺寸变了，球的位置也要跟着重算）
+    [[NSNotificationCenter defaultCenter]
+        addObserverForName:UIApplicationDidBecomeActiveNotification
+                    object:nil
+                     queue:[NSOperationQueue mainQueue]
+                usingBlock:^(NSNotification*) {
+                  g_dirty.store(true);
+                  g_last_present = 0;
+                }];
+    [[NSNotificationCenter defaultCenter]
+        addObserverForName:UIDeviceOrientationDidChangeNotification
+                    object:nil
+                     queue:[NSOperationQueue mainQueue]
+                usingBlock:^(NSNotification*) {
+                  g_dirty.store(true);
+                  g_last_present = 0;
+                }];
 
     // 8 秒后给个明确结论
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)),
