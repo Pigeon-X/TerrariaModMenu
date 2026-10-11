@@ -1,11 +1,18 @@
-name: build
+name: build-check
+
+# 只做「代码能不能编过」的校验，**不保留任何产物**：
+#   · 不往仓库里提交 dylib / 日志
+#   · 不上传 Actions artifact
+# 成品一律在本地产（bash scripts/build_ios_local.sh）。
+#
+# 想彻底不跑 CI 的话，把这个文件和 preview.yml 一起删掉即可。
 
 on:
   push:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -13,89 +20,31 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: 环境信息
         run: |
           echo "runner: $(sw_vers -productVersion 2>/dev/null || echo ?)"
           xcodebuild -version 2>&1 || true
           echo "sdk: $(xcrun --sdk iphoneos --show-sdk-path 2>&1 || true)"
-          echo "clang: $(clang --version 2>&1 | head -1 || true)"
 
-      # 编译失败也继续跑后面的步骤，好把日志吐出来
-      - name: 拉依赖 + 编译
-        id: compile
-        continue-on-error: true
+      - name: 拉依赖 + 编译（编不过就让这个 job 红）
         run: |
-          mkdir -p dist
-          : > build.log
+          bash scripts/fetch_deps.sh
+          make generic
+          ls -l build/TerrariaModMenu.dylib
 
-          {
-            echo "===== [1/2] fetch_deps ====="
-            bash scripts/fetch_deps.sh
-          } 2>&1 | tee -a build.log
-
-          {
-            echo ""
-            echo "===== [2/2] make generic ====="
-            make generic
-          } 2>&1 | tee -a build.log
-
-          if [ -f build/TerrariaModMenu.dylib ]; then
-            cp build/TerrariaModMenu.dylib dist/TerrariaModMenu.dylib
-            echo "结果: 编译成功"
-          else
-            echo "结果: 编译失败（没产出 dylib）"
-          fi
-
-      # 把日志写进 run 页面顶部的 Summary —— 不用下载 artifact 就能看
-      - name: 日志写入 Summary
+      # 日志只放进 run 页面的 Summary，不落盘、不提交
+      - name: 结果
         if: always()
         run: |
           {
-            echo "## 构建结果"
+            echo "## 编译校验"
             echo ""
-            if [ -f dist/TerrariaModMenu.dylib ]; then
-              echo "✅ 编译成功，产物 \`dist/TerrariaModMenu.dylib\`"
+            echo '```'
+            if [ -f build/TerrariaModMenu.dylib ]; then
+              echo "✅ 编译通过（产物留在 runner 上，不回传仓库）"
             else
               echo "❌ 编译失败"
             fi
-            echo ""
-            echo "### 编译日志（最后 400 行）"
-            echo ""
-            echo '```'
-            tail -n 400 build.log 2>/dev/null || echo "(没有日志)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: 收集产物
-        if: always()
-        run: |
-          mkdir -p dist
-          cp build.log dist/build.log 2>/dev/null || true
-          ls -l dist/ || true
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: TerrariaModMenu-dylib
-          path: dist/
-          if-no-files-found: warn
-
-      # 回传 dist/。这一步失败不影响 job 结论（日志已经进 Summary 了）
-      - name: 回传 dist/
-        if: always() && github.event_name == 'push'
-        continue-on-error: true
-        run: |
-          git config user.name "modmenu-ci"
-          git config user.email "modmenu-ci@local"
-          git add -f dist/ || true
-          if git diff --cached --quiet; then
-            echo "dist/ 没变化，跳过提交"
-          else
-            git commit -m "ci: 更新构建产物与日志 [skip ci]" || true
-            # 两个 workflow 都会往 dist/ 提交，push 前先 rebase，否则会被抢推失败
-            git pull --rebase origin main || true
-            git push || (git pull --rebase origin main && git push)
-          fi

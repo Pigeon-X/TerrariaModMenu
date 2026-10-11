@@ -8,31 +8,28 @@
 
 两个版本共用同一套源码，编译期开关切换。
 
-## 直接拿成品（不用自己编译）
+## 构建
 
-`dist/TerrariaModMenu.dylib` 是**每次推代码后由 GitHub Actions 自动编译并提交回来的**，
-所以仓库里那份永远对应最新源码：
-
-```bash
-# 克隆下来直接就有
-git clone https://github.com/Pigeon-X/TerrariaModMenu.git
-# 成品在 dist/TerrariaModMenu.dylib
-
-# 已经克隆过的，拉一下就行
-git pull
-```
-
-注入进 IPA：
+**本仓库只存源码，不放任何构建产物**（`dist/`、`build/` 都在 `.gitignore` 里）。
+上游 CI 只做「代码能不能编过」的校验，不产出也不回传任何文件。
+成品一律在本地产：
 
 ```bash
+# macOS：编出 iOS arm64 的 dylib（约 8 秒）
+bash scripts/build_ios_local.sh          # → build/TerrariaModMenu.dylib
+
+# 注入进 IPA
 python3 scripts/inject_ipa.py "Terraria 汉化底包.ipa" \
-        --dylib dist/TerrariaModMenu.dylib -o "Terraria 含ModMenu.ipa"
+        --dylib build/TerrariaModMenu.dylib -o "Terraria 含ModMenu.ipa"
 # 然后自己重签（TrollStore / Sideloadly / AltStore）
 ```
 
-> 自己改代码的话，本机编译比等 CI 快得多：
-> `bash scripts/build_ios_local.sh`（macOS，约 8 秒）。
-> 相关脚本说明见仓库里 `scripts/` 下的注释。
+改 UI 的时候不用上真机：
+
+```bash
+bash scripts/build_preview_mac.sh        # Mac 原生预览器（鼠标点着调）
+./build/TerrariaModMenu-Preview-mac
+```
 
 ## 它长什么样
 
