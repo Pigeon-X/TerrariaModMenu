@@ -36,6 +36,13 @@ else
   git --no-pager log --oneline -1
 fi
 
+# 顺手把本地编好的那份拷到上层 ios 文件夹根目录（省得去 GitHub 拿）
+here_root="$(dirname "$repo")"
+if [ -f "$repo/build/TerrariaModMenu.dylib" ]; then
+  cp -f "$repo/build/TerrariaModMenu.dylib" "$here_root/TerrariaModMenu.dylib" && \
+    echo "已拷到：$here_root/TerrariaModMenu.dylib"
+fi
+
 echo "推送到 origin ..."
 if ! GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git push origin main 2>&1; then
   cat >&2 <<'EOF'
