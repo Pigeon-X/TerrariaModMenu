@@ -70,3 +70,14 @@ if [ "$plat" != "2" ]; then
   echo "⚠️ 这不是 iOS 设备版的 dylib，注入进 IPA 是跑不起来的。" >&2
   exit 1
 fi
+
+# ---- 顺手放一份到上层 ios 文件夹 -------------------------------------------
+# 约定：插件成品永远在 ios 文件夹根目录有一份，不用去 GitHub 拿、也不用翻 build/。
+# 放在这里（而不是只放在出包/发布脚本里）是为了"不管走哪条路编，
+# 工作区那份都是最新的"。
+dest="$(dirname "$repo")/TerrariaModMenu.dylib"
+if cp -f "$out" "$dest" 2>/dev/null; then
+  echo "          已放到工作区：$dest"
+else
+  echo "          （没能拷到 $dest，可能没写权限，不影响编译）"
+fi
