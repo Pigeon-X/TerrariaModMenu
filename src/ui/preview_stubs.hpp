@@ -78,7 +78,19 @@ inline const std::vector<std::pair<int, std::string>>& item_table() {
 }
 
 inline const std::vector<std::pair<int, std::string>>& npc_table() {
-    static const std::vector<std::pair<int, std::string>> v = {};
+    static const std::vector<std::pair<int, std::string>> v = [] {
+        const char* names[] = {
+            "史莱姆", "蓝史莱姆", "绿史莱姆", "僵尸", "恶魔眼", "飞眼怪",
+            "骷髅", "骷髅法师", "巨型蠕虫", "蚁狮", "食人鱼", "蝙蝠",
+            "克苏鲁之眼", "骷髅王", "世界吞噬怪", "克苏鲁之脑", "史莱姆王",
+            "蜂后", "骷髅队长", "机械蠕虫", "双子魔眼", "机械骷髅王",
+            "向导", "商人", "护士", "军火商", "树妖", "巫医", "哥布林工匠",
+        };
+        std::vector<std::pair<int, std::string>> out;
+        int id = 1;
+        for (const char* n : names) out.emplace_back(id++, n);
+        return out;
+    }();
     return v;
 }
 inline const std::vector<std::pair<int, std::string>>& buff_table() {
@@ -95,4 +107,12 @@ namespace cheat {
 inline bool g_stub_in_world = true;      // 预览器可用 --not-in-world 改成 false
 inline bool in_world() { return g_stub_in_world; }
 inline void give_item(int, int) {}
+// 实体页的假数据
+inline int npc_stats(int* alive, int* hostile) {
+    if (alive) *alive = 12;
+    if (hostile) *hostile = 7;
+    return 12;
+}
+inline int kill_npcs(bool) { return 0; }
+inline int spawn_npc(int, int) { return 1; }
 }  // namespace cheat

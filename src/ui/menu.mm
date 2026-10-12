@@ -404,8 +404,7 @@ void draw() {
         } else switch (g_page) {
             case 0: cheat::draw_self_page(); break;
             case 1: cheat::draw_world_page(); break;
-            case 2: draw_placeholder("实体", "NPC / 怪物列表、生成、一键清理。\n"
-                                             "要遍历 Main.npc 数组，属于下一批（B 档）。"); break;
+            case 2: cheat::draw_entity_page(); break;
             case 3: cheat::draw_item_page(); break;
             case 4: draw_placeholder("多选", "批量操作（多人模式）。");
                     break;

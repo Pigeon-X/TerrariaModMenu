@@ -19,6 +19,7 @@ namespace {
 il2::Class* gMain = nullptr;
 il2::Class* gPlayer = nullptr;
 il2::Class* gItem = nullptr;
+il2::Class* gNpc = nullptr;
 bool gReady = false;
 bool gTried = false;
 
@@ -37,6 +38,12 @@ il2::Field* f_eclipse; il2::Field* f_rain; il2::Field* f_sandStorm;
 il2::Field* f_windSpeed; il2::Field* f_hardMode;
 il2::Field* f_mouseX; il2::Field* f_mouseY;
 il2::Field* f_gameMenu;                 // Main.gameMenu：true = 还在主菜单，没进地图
+il2::Field* f_playerPos;                // Player.position（生成 NPC 时用来定位）
+
+// 实体（NPC）字段
+il2::Field* f_npcArr;                   // Main.npc（NPC 数组）
+il2::Field* f_npcActive; il2::Field* f_npcLife; il2::Field* f_npcType;
+il2::Field* f_npcFriendly; il2::Field* f_npcWhoAmI; il2::Field* f_npcPos;
 
 // 开关状态在 cheat_state.hpp（界面和真机共用同一份）
 
@@ -152,6 +159,22 @@ bool init() {
     f_mouseX = F(gMain, "mouseX");                f_mouseY = F(gMain, "mouseY");
     f_gameMenu = F(gMain, "gameMenu");
 
+    // ---- 实体（NPC）----
+    // 字段名跟安卓版那套按名解析用的是同一批（NPC.active/life/type/friendly/whoAmI）
+    gNpc = il2::class_from_name(img, "Terraria", "NPC");
+    f_npcArr = F(gMain, "npc");
+    f_playerPos = F(gPlayer, "position");
+    if (gNpc) {
+        auto N = [&](const char* n) -> il2::Field* {
+            return il2::class_get_field_from_name(gNpc, n);
+        };
+        f_npcActive = N("active");     f_npcLife = N("life");
+        f_npcType = N("type");         f_npcFriendly = N("friendly");
+        f_npcWhoAmI = N("whoAmI");     f_npcPos = N("position");
+    }
+    mm::logf("修改器：NPC 类 %s，Main.npc %s，NPC.life %s",
+             gNpc ? "有" : "无", f_npcArr ? "有" : "无", f_npcLife ? "有" : "无");
+
     // 名字和指针成对存一份：没解析到的直接把**名字**打进日志，
     // 真机跑一次就知道哪个字段跟这个游戏版本对不上（不用靠猜）。
     struct FieldRef { const char* name; il2::Field* f; };
@@ -169,6 +192,11 @@ bool init() {
         {"eclipse", f_eclipse},         {"rain", f_rain},
         {"sandStorm", f_sandStorm},     {"windSpeedCurrent", f_windSpeed},
         {"hardMode", f_hardMode},       {"gameMenu", f_gameMenu},
+        {"Player.position", f_playerPos},
+        {"Main.npc", f_npcArr},         {"npc.active", f_npcActive},
+        {"npc.life", f_npcLife},        {"npc.type", f_npcType},
+        {"npc.friendly", f_npcFriendly}, {"npc.whoAmI", f_npcWhoAmI},
+        {"npc.position", f_npcPos},
     };
     int ok = 0, total = 0;
     std::string miss;
@@ -317,6 +345,103 @@ void give_item(int id, int count) {
     il2::Field* fStack = il2::class_get_field_from_name(gItem, "stack");
     if (fStack) *reinterpret_cast<int32_t*>(target + il2::field_get_offset(fStack)) = count;
     mm::logf("修改器：已放入物品 id=%d x%d（槽位 %d）", id, count, slot);
+}
+
+// ---------------------------------------------------------------------------
+// 实体（NPC）
+// ---------------------------------------------------------------------------
+namespace {
+
+// Terraria 的 Main.npc 上限是 200 个槽
+constexpr int kNpcSlots = 200;
+
+// 取第 i 个 NPC 对象（数组元素是引用，跟 Player 数组一样的排布：
+// Il2CppArray: obj(16) + bounds(8) + length(4+4) -> 数据从 32 开始）
+il2::Object* npc_at(int i) {
+    if (!gReady || !f_npcArr || i < 0 || i >= kNpcSlots) return nullptr;
+    void* arr = nullptr;
+    il2::field_static_get_value(f_npcArr, &arr);
+    if (!arr) return nullptr;
+    return *reinterpret_cast<il2::Object**>(reinterpret_cast<char*>(arr) + 32 + i * 8);
+}
+
+}  // namespace
+
+int npc_stats(int* alive, int* hostile) {
+    int a = 0, h = 0;
+    if (!gReady && !init()) {
+        if (alive) *alive = 0;
+        if (hostile) *hostile = 0;
+        return 0;
+    }
+    for (int i = 0; i < kNpcSlots; ++i) {
+        il2::Object* n = npc_at(i);
+        if (!n) continue;
+        if (!read_b(n, f_npcActive, false)) continue;
+        ++a;
+        if (!read_b(n, f_npcFriendly, false)) ++h;
+    }
+    if (alive) *alive = a;
+    if (hostile) *hostile = h;
+    return a;
+}
+
+int kill_npcs(bool hostile_only) {
+    if (!gReady && !init()) return 0;
+    int n = 0;
+    for (int i = 0; i < kNpcSlots; ++i) {
+        il2::Object* o = npc_at(i);
+        if (!o || !read_b(o, f_npcActive, false)) continue;
+        if (hostile_only && read_b(o, f_npcFriendly, false)) continue;
+        // 血量清零，游戏下一帧自己判定死亡（比直接调用伤害函数安全）
+        write_i(o, f_npcLife, false, 0);
+        ++n;
+    }
+    mm::logf("修改器：秒杀 %d 个 NPC%s", n, hostile_only ? "（只杀敌对）" : "（全部）");
+    return n;
+}
+
+int spawn_npc(int type, int count) {
+    if (!gReady && !init()) return 0;
+    if (!gNpc || !f_npcLife) return 0;
+
+    // 用 NPC.SetDefaults(type) 初始化空槽，再自己把 active / 位置 / whoAmI 写上。
+    // 这条路比调 NewNPC 稳：NewNPC 各个版本的参数个数不一样，容易调错。
+    il2::Method* setDefaults = il2::class_get_method_from_name(gNpc, "SetDefaults", 1);
+    if (!setDefaults) { log_missing("NPC.SetDefaults"); return 0; }
+
+    // 生成在玩家头顶一点点
+    float px = 0, py = 0;
+    if (il2::Object* p = me()) {
+        if (f_playerPos) {
+            struct V2 { float x, y; } v{};
+            il2::field_get_value(p, f_playerPos, &v);
+            px = v.x; py = v.y - 80.0f;
+        }
+    }
+
+    int made = 0;
+    for (int i = 0; i < kNpcSlots && made < count; ++i) {
+        il2::Object* o = npc_at(i);
+        if (!o || read_b(o, f_npcActive, false)) continue;
+
+        int32_t a0 = type;
+        void* args[1] = {&a0};
+        void* exc = nullptr;
+        il2::runtime_invoke(setDefaults, o, args, &exc);
+        if (exc) { mm::logf("修改器：NPC.SetDefaults(%d) 抛异常", type); break; }
+
+        write_i(o, f_npcType, false, type);
+        write_i(o, f_npcWhoAmI, false, i);
+        if (f_npcPos && (px != 0.0f || py != 0.0f)) {
+            struct V2 { float x, y; } pos{px, py};
+            il2::field_set_value(o, f_npcPos, &pos);
+        }
+        write_b(o, f_npcActive, false, true);
+        ++made;
+    }
+    mm::logf("修改器：生成 NPC type=%d x%d（成功 %d）", type, count, made);
+    return made;
 }
 
 }  // namespace cheat

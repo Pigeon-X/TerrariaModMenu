@@ -37,4 +37,10 @@ inline int  v_itemId = 1;
 inline int  v_itemCount = 99;
 inline char v_itemSearch[64] = "";
 
+// ---- 实体（NPC）------------------------------------------------------------
+inline bool e_hostile_only = true;      // 秒杀时只清敌对
+inline int  v_npcType = 1;              // 生成的 NPC 类型号
+inline int  v_npcCount = 1;             // 生成数量
+inline char v_npcSearch[64] = "";
+
 }  // namespace cheat

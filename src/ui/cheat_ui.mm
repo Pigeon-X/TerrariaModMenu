@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "cheat_state.hpp"
+#include "menu.hpp"          // ui::log_line
 #include "widgets.hpp"
 
 #ifdef MODMENU_PREVIEW
@@ -179,6 +180,94 @@ void draw_item_page() {
             }
         }
         if (shown == 0) theme::text_dim("没有匹配的物品");
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor(2);
+}
+
+// ---------------------------------------------------------------------------
+// 实体（NPC）
+// ---------------------------------------------------------------------------
+void draw_entity_page() {
+    theme::section_header("实体", "entity · NPC 与怪物");
+    ImGui::Spacing();
+
+    int alive = 0, hostile = 0;
+    npc_stats(&alive, &hostile);
+
+    if (theme::begin_card("##card_npc_stat", "当前状态", 2)) {
+        ImGui::PushStyleColor(ImGuiCol_Text, theme::text());
+        ImGui::Text("存活 NPC %d 个（敌对 %d）", alive, hostile);
+        ImGui::PopStyleColor();
+        theme::text_dim("只统计处于 active 状态的槽位");
+    }
+    theme::end_card();
+    ImGui::Spacing();
+
+    if (theme::begin_card("##card_npc_kill", "清理", 3)) {
+        theme::toggle_row("只清敌对", &e_hostile_only, "不碰 NPC 村民/宠物");
+        if (ImGui::Button("秒杀全部", ImVec2(ImGui::GetFontSize() * 7.0f, 0))) {
+            const int n = kill_npcs(e_hostile_only);
+            char msg[96];
+            snprintf(msg, sizeof(msg), "已秒杀 %d 个 NPC", n);
+            ui::log_line(msg);
+        }
+        theme::text_dim("把血量清零，由游戏自己判定死亡");
+    }
+    theme::end_card();
+    ImGui::Spacing();
+
+    if (theme::begin_card("##card_npc_spawn", "生成", 2)) {
+        const float in_w = ImGui::GetFontSize() * 3.6f;
+        ImGui::SetNextItemWidth(in_w);
+        ImGui::InputInt("##npctype", &v_npcType, 1, 10);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(in_w);
+        ImGui::InputInt("##npccount", &v_npcCount, 1, 10);
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::accent_dim());
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accent());
+        const bool hit = ImGui::Button("生成");
+        ImGui::PopStyleColor(2);
+        if (hit) spawn_npc(v_npcType, v_npcCount);
+        theme::text_dim("左：NPC 类型号（见下表）　右：数量，生成在角色附近");
+    }
+    theme::end_card();
+    ImGui::Spacing();
+
+    const auto& tbl = gd::npc_table();
+    ImGui::PushStyleColor(ImGuiCol_Text, theme::text_dim());
+    ImGui::Text("共 %zu 种 · 点名字填入类型号", tbl.size());
+    ImGui::PopStyleColor();
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputTextWithHint("##npcsearch", "搜索 NPC 名或 ID", v_npcSearch, sizeof(v_npcSearch));
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::card_bg());
+    ImGui::PushStyleColor(ImGuiCol_Border, theme::card_edge());
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, ImGui::GetFontSize() * 0.36f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
+    ImGui::BeginChild("##npclist", ImVec2(0, 0), ImGuiChildFlags_Border);
+    {
+        int shown = 0;
+        for (const auto& [id, name] : tbl) {
+            if (v_npcSearch[0]) {
+                char idbuf[16];
+                snprintf(idbuf, sizeof(idbuf), "%d", id);
+                if (name.find(v_npcSearch) == std::string::npos &&
+                    strstr(idbuf, v_npcSearch) == nullptr) continue;
+            }
+            char label[160];
+            snprintf(label, sizeof(label), "%s##npc%d", name.c_str(), id);
+            if (ImGui::Selectable(label)) {
+                v_npcType = id;
+                v_npcCount = 1;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("ID %d · 点一下填进上面的类型号", id);
+            if (++shown >= 400) { theme::text_dim("…… 还有更多，输入关键字缩小范围"); break; }
+        }
+        if (shown == 0) theme::text_dim("没有匹配的 NPC");
     }
     ImGui::EndChild();
     ImGui::PopStyleVar(2);
