@@ -605,3 +605,39 @@ bool start() {
     host::render_overlay();
 }
 @end
+
+// ---------------------------------------------------------------------------
+// 把插件日志发到电脑上的小站（真机没有 USB 通道时靠它看日志）。
+// 上传的就是 mm_log 写的那个文件；结果写回日志，下一轮上传就能带上。
+// ---------------------------------------------------------------------------
+namespace ui {
+
+void upload_log_to(const char* url) {
+    if (!url || !*url) return;
+    @autoreleasepool {
+        const std::string path = mm::log_path();
+        NSData* body = [NSData dataWithContentsOfFile:@(path.c_str())];
+        if (!body) {
+            mm::logf("日志上传：读不到日志文件 %s", path.c_str());
+            return;
+        }
+        NSMutableURLRequest* req =
+            [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@(url)]];
+        req.HTTPMethod = @"POST";
+        req.HTTPBody = body;
+        req.timeoutInterval = 15;
+        mm::logf("日志上传：开始（%lu 字节 -> %s）", (unsigned long)body.length, url);
+        [[NSURLSession sharedSession]
+            dataTaskWithRequest:req
+              completionHandler:^(NSData* d, NSURLResponse* r, NSError* e) {
+                if (e) {
+                    mm::logf("日志上传：失败 %s", e.localizedDescription.UTF8String ?: "?");
+                } else {
+                    NSInteger code = [(NSHTTPURLResponse*)r statusCode];
+                    mm::logf("日志上传：完成 HTTP %ld", (long)code);
+                }
+              }].resume;
+    }
+}
+
+}  // namespace ui

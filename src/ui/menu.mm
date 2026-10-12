@@ -172,6 +172,25 @@ void draw_settings_page() {
 #endif
     }
     theme::end_card();
+    ImGui::Spacing();
+
+    // ---- 真机调试：把日志发到电脑 ------------------------------------------
+    // iOS 16 上没法用 USB 通道读沙盒文件（devicectl 要 iOS 17+），
+    // 所以让插件自己把日志 POST 到电脑上的小站。
+    if (theme::begin_card("##devlog", "真机调试", 3)) {
+        static char url[128] = "http://192.168.1.236:8123/upload";
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputTextWithHint("##logurl", "电脑上的接收地址", url, sizeof(url));
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::accent_dim());
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accent());
+        if (ImGui::Button("把日志发到电脑", ImVec2(ImGui::GetFontSize() * 10.0f, 0))) {
+            upload_log_to(url);
+            log_line("已发起日志上传，结果见日志末尾");
+        }
+        ImGui::PopStyleColor(2);
+        theme::text_dim("手机要和电脑在同一个 Wi-Fi");
+    }
+    theme::end_card();
 }
 
 void draw_placeholder(const char* title, const char* note) {

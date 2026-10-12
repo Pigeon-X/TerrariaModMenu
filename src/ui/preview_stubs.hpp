@@ -127,3 +127,8 @@ inline void player_stats(int* life, int* lm, int* mana, int* mm, int* def) {
 }
 inline bool teleport_to_spawn() { return true; }
 }  // namespace cheat
+
+// 预览器里没有真机、也没有日志文件，发日志是空操作
+namespace ui {
+inline void upload_log_to(const char*) {}
+}  // namespace ui

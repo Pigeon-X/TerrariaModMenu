@@ -26,6 +26,10 @@ float ui_scale();
 bool hide_on_capture();
 void set_hide_on_capture(bool v);
 
+// 把插件日志 POST 到电脑上的小站（真机专用，用来远程看日志）。
+// 结果会写回日志本身，所以下一次上传就能看到上一次的成败。
+void upload_log_to(const char* url);
+
 // 往控制台日志里追加一行（线程安全）
 void log_line(const std::string& text);
 
