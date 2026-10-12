@@ -260,13 +260,21 @@ void draw_entity_page() {
 
     if (theme::begin_card("##card_npc_kill", "清理", 3)) {
         theme::toggle_row("只清敌对", &e_hostile_only, "不碰 NPC 村民/宠物");
-        if (ImGui::Button("秒杀全部", ImVec2(ImGui::GetFontSize() * 7.0f, 0))) {
+        const float bw = ImGui::GetFontSize() * 7.0f;
+        if (ImGui::Button("清除全部", ImVec2(bw, 0))) {
             const int n = kill_npcs(e_hostile_only);
             char msg[96];
-            snprintf(msg, sizeof(msg), "已秒杀 %d 个 NPC", n);
+            snprintf(msg, sizeof(msg), "已清除 %d 个 NPC", n);
             ui::log_line(msg);
         }
-        theme::text_dim("把血量清零，由游戏自己判定死亡");
+        ImGui::SameLine();
+        if (ImGui::Button("秒杀全部", ImVec2(bw, 0))) {
+            const int n = strike_npcs(e_hostile_only);
+            char msg[96];
+            snprintf(msg, sizeof(msg), "已带伤害击杀 %d 个 NPC", n);
+            ui::log_line(msg);
+        }
+        theme::text_dim("清除 = 直接移除（无声消失）　秒杀 = 带伤害击杀（有死亡表现/掉落）");
     }
     theme::end_card();
     ImGui::Spacing();

@@ -749,6 +749,64 @@ int kill_npcs(bool hostile_only) {
     return n;
 }
 
+// 按方法声明的参数类型填实参再调用（IL2CPP 是按声明宽度读参数的，
+// 传错宽度会把参数读花）。最多支持 8 个参数。
+namespace {
+
+il2::Object* invoke_num(il2::Method* m, il2::Object* self, const double* vals, int n) {
+    int32_t iv[8] = {0};
+    float fv[8] = {0};
+    uint8_t bv[8] = {0};
+    double dv[8] = {0};
+    void* args[8] = {nullptr};
+    for (int k = 0; k < n && k < 8; ++k) {
+        il2::Type* t = il2::method_get_param(m, (uint32_t)k);
+        switch (t ? il2::type_get_type(t) : 0) {
+            case il2::TK_BOOL: bv[k] = (vals[k] != 0.0) ? 1 : 0; args[k] = &bv[k]; break;
+            case il2::TK_R4:   fv[k] = (float)vals[k];           args[k] = &fv[k]; break;
+            case il2::TK_R8:   dv[k] = vals[k];                  args[k] = &dv[k]; break;
+            default:           iv[k] = (int32_t)vals[k];         args[k] = &iv[k]; break;
+        }
+    }
+    void* exc = nullptr;
+    return il2::runtime_invoke(m, self, args, &exc);
+}
+
+}  // namespace
+
+// 带伤害地杀：走 NPC.StrikeNPC，游戏自己处理死亡表现、掉落、击杀数。
+// 和 kill_npcs（直接把 life 清零，NPC 无声无息消失）是两回事。
+int strike_npcs(bool hostile_only) {
+    if (!gReady && !init()) return 0;
+    if (!gNpc) return 0;
+
+    static il2::Method* strike = nullptr;
+    static int strike_argc = 0;
+    if (!strike) {
+        for (int n : {6, 5, 4, 3}) {
+            if ((strike = il2::class_get_method_from_name(gNpc, "StrikeNPC", n)) != nullptr) {
+                strike_argc = n;
+                mm::logf("修改器：NPC.StrikeNPC 解析到 %d 参重载", n);
+                break;
+            }
+        }
+    }
+    if (!strike) { log_missing("NPC.StrikeNPC"); return 0; }
+
+    int hit = 0;
+    for (int i = 0; i < kNpcSlots; ++i) {
+        il2::Object* o = npc_at(i);
+        if (!o || !read_b(o, f_npcActive, false)) continue;
+        if (hostile_only && read_b(o, f_npcFriendly, false)) continue;
+        // 伤害给足，一次带走；其余参数（击退/方向/暴击…）按签名顺序填
+        const double vals[8] = {999999.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        invoke_num(strike, o, vals, strike_argc);
+        ++hit;
+    }
+    mm::logf("修改器：带伤害秒杀 %d 个 NPC%s", hit, hostile_only ? "（只杀敌对）" : "（全部）");
+    return hit;
+}
+
 int spawn_npc(int type, int count) {
     if (!gReady && !init()) return 0;
     if (!gNpc || !f_npcLife) return 0;
@@ -873,10 +931,27 @@ bool teleport_to_spawn() {
     else tx = static_getter_int(f_spawnX_get, 0);
     if (f_spawnY) il2::field_static_get_value(f_spawnY, &ty);
     else ty = static_getter_int(f_spawnY_get, 0);
-    // 方块坐标 -> 世界坐标：每格 16 像素
-    struct V2 { float x, y; } pos{(float)(tx * 16), (float)(ty * 16)};
+    // 方块坐标 -> 世界坐标：每格 16 像素。
+    // ⚠️ position 是玩家**碰撞盒的左上角**，直接写 (tileX*16, tileY*16)
+    //    会让人埋进地里（之前真机就是"出生点太偏下"）。
+    //    正确做法：脚踩在那一格的上沿 -> y 减去身高；x 按宽度居中。
+    float px = (float)(tx * 16) + 8.0f;
+    float py = (float)(ty * 16);
+    if (gPlayer) {
+        if (il2::Field* fh = il2::class_get_field_from_name(gPlayer, "height")) {
+            int32_t h = 0;
+            il2::field_get_value(p, fh, &h);
+            if (h > 0) py -= (float)h;
+        }
+        if (il2::Field* fw = il2::class_get_field_from_name(gPlayer, "width")) {
+            int32_t w = 0;
+            il2::field_get_value(p, fw, &w);
+            if (w > 0) px -= (float)w * 0.5f;
+        }
+    }
+    struct V2 { float x, y; } pos{px, py};
     il2::field_set_value(p, f_playerPos, &pos);
-    mm::logf("修改器：已传送到出生点（格子 %d,%d）", tx, ty);
+    mm::logf("修改器：已传送到出生点（格子 %d,%d -> 坐标 %.0f,%.0f）", tx, ty, px, py);
     return true;
 }
 

@@ -31,6 +31,8 @@ void draw_entity_page();   // 实体：NPC 列表 / 生成 / 秒杀
 int  npc_stats(int* alive, int* hostile);
 // 秒杀掉所有 NPC（hostile_only = 只杀敌对）。返回处理了几个
 int  kill_npcs(bool hostile_only);
+// 带伤害地杀掉（走 NPC.StrikeNPC，会有死亡表现/掉落）。返回处理了几个
+int  strike_npcs(bool hostile_only);
 // 在玩家附近生成 count 个 type 号 NPC。返回成功几个
 int  spawn_npc(int type, int count);
 

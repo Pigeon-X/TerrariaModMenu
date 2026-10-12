@@ -114,6 +114,7 @@ inline int npc_stats(int* alive, int* hostile) {
     return 12;
 }
 inline int kill_npcs(bool) { return 0; }
+inline int strike_npcs(bool) { return 0; }
 inline int spawn_npc(int, int) { return 1; }
 inline void heal_full() {}
 inline void set_world_time(int) {}
