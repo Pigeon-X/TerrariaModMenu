@@ -543,6 +543,17 @@ void fast_writer_loop() {
                 write_auto(p, f_statDefense, false, 9999);
                 write_auto(p, f_endurance, false, 1.0f);
             }
+            // 3600 这个值跟 tick() 里用的一致：bool 字段非零即为真，
+            // 万一是计时器型（int）也够顶一阵
+            if (c_noKnockback) write_auto(p, f_noKnockback, false, 3600.0);
+            // 每 ~1 秒汇报一次：写进去之后立刻读回来是什么。
+            // 读回 9999 = 写成功了（那问题在游戏不认这个字段）；
+            // 读回原值   = 根本没写进去（那是我们这边的问题）。
+            static int n = 0;
+            if (c_defense && ++n % 1000 == 0) {
+                mm::logf("修改器：防御写 9999 -> 读回 %d",
+                         read_i(p, f_statDefense, false, -1));
+            }
         }
         usleep(1000);
     }
@@ -564,8 +575,8 @@ void tick() {
     // ⚠️ 这个开关必须在下面 active() 早退**之前**更新。
     // 否则"防御拉满"是最后一个被关掉的开关时：active() 已经变 false，
     // 函数直接早退，标记留在 true -> 后台线程会一直把防御压在 9999。
-    if (c_defense) ensure_fast_writer();
-    g_fast_write.store(c_defense);
+    if (c_defense || c_noKnockback) ensure_fast_writer();
+    g_fast_write.store(c_defense || c_noKnockback);
 
     // C 档的配置写入暂时停用（二分排查闪退）
     if (!active()) return;

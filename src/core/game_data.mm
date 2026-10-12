@@ -81,6 +81,13 @@ std::string buff_name(int id) { if (!init()) return ""; return call_name(g_buffN
 
 const std::vector<std::pair<int, std::string>>& item_table() {
     if (!g_tablesBuilt) {
+        // ⚠️ 必须先把 Lang 方法解析出来再扫表 —— 之前漏了这一步，
+        //    界面直接调 item_table() 时 g_itemName 还是空的，
+        //    于是扫出来永远是「物品 0 / NPC 0 / Buff 0 项」。
+        if (!init()) {
+            mm::logf("数据层：init 失败，三个表建不出来");
+            return g_itemTable;      // 空表，但**不**置 g_tablesBuilt，下次还会重试
+        }
         g_tablesBuilt = true;
         g_itemTable = scan(g_itemName, g_itemCache);
         g_npcTable = scan(g_npcName, g_npcCache);
