@@ -35,6 +35,7 @@
 #include "../ui/menu.hpp"
 #include "../ui/cheat.hpp"
 #include "../ui/ball_texture.hpp"
+#include "../ui/glyph_extra.hpp"
 
 namespace host {
 namespace {
@@ -123,6 +124,9 @@ void setup_fonts(ImGuiIO& io) {
         builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
         builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
         builder.AddText("✕×●○✔");          // 图标用到的几个符号
+        // 界面文案里超出「常用 2500 字」的那些字（如「屏」「渲」「帧」），
+        // 不加载会显示成问号。列表由 tools/gen_glyphs.py 从源码生成。
+        builder.AddText(glyphs::kExtra);
         builder.BuildRanges(&ranges);
     }
     mm::logf("ImGui 字体：字形范围共 %d 个码点", (int)ranges.Size);
@@ -298,8 +302,11 @@ bool setup_overlay() {
 void render_overlay() {
     if (!g_layer || !g_queue) return;
     @autoreleasepool {
-        // 防录屏（C 档）：检测到屏幕录制/镜像时，直接把自己的层藏起来
-        if ([UIScreen mainScreen].isCaptured) {
+        // 悬浮球和整个控制台**进游戏就能用**（日志/脚本这些跟地图无关）。
+        // 「修改器」那几页才需要进地图 —— 那个判断在 menu.mm 里按页做。
+        // 防录屏（设置 → 界面 里可以关）：
+        // 检测到屏幕录制/投屏时，直接把自己的层藏起来。
+        if (ui::hide_on_capture() && [UIScreen mainScreen].isCaptured) {
             if (!g_layer.hidden) { g_layer.hidden = YES; mm::logf("检测到录屏，已隐藏菜单层"); }
             return;
         }

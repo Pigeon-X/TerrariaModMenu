@@ -18,6 +18,7 @@
 //   --size WxH       窗口/截图画布尺寸（默认 1280x800）
 //   --frames N       截图前先跑几帧（ImGui 需要几帧才能把布局稳定下来，默认 3）
 //   --ball           只显示悬浮球（游戏里刚进游戏的初始态）
+//   --not-in-world   模拟"还在主菜单"，看修改器那几页的"进入地图后才能使用"提示
 //   --click X,Y      截图前在该坐标点一下（可重复），用来把某个标签页点出来
 //
 #import <Foundation/Foundation.h>
@@ -40,6 +41,8 @@
 
 #include "../src/ui/menu.hpp"
 #include "../src/ui/ball_texture.hpp"
+#include "../src/ui/glyph_extra.hpp"
+#include "../src/ui/preview_stubs.hpp"
 
 // ---------------------------------------------------------------------------
 // 共用：字体 / 悬浮球纹理 —— 逻辑和 src/platform/imgui_host.mm 保持一致，
@@ -68,6 +71,7 @@ static void setup_fonts(ImGuiIO& io, float font_px) {
         builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
         builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
         builder.AddText("✕×●○✔");
+        builder.AddText(glyphs::kExtra);   // 界面里的非常用字，见 tools/gen_glyphs.py
         builder.BuildRanges(&ranges);
     }
 
@@ -392,6 +396,8 @@ int main(int argc, const char* argv[]) {
                 if (sscanf(argv[++i], "%d,%d", &x, &y) == 2) clicks.emplace_back(x, y);
             } else if (a == "--ball") {
                 ball_only = true;
+            } else if (a == "--not-in-world") {
+                cheat::g_stub_in_world = false;
             } else if (a == "-h" || a == "--help") {
                 usage(argv[0]);
                 return 0;

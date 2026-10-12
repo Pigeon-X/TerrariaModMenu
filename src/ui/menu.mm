@@ -57,6 +57,7 @@ std::vector<std::pair<std::string, PanelFn>> g_panels;
 char g_filter[128] = "";
 bool g_auto_scroll = true;
 float g_ui_scale = 1.0f;
+bool g_hide_on_capture = true;       // 检测到录屏时隐藏界面（设置里可关）
 
 int g_page = 0;                      // 左侧导航当前页
 
@@ -147,10 +148,9 @@ void draw_settings_page() {
     theme::section_header("设置", "界面与状态");
     ImGui::Spacing();
 
-    if (theme::begin_card("##ui", "界面", 2)) {
-        ImGui::SetNextItemWidth(-120);
-        ImGui::SliderFloat("整体缩放", &g_ui_scale, 0.7f, 1.8f, "%.2fx");
-        theme::text_dim("改完下一帧生效（渲染层在 NewFrame 之前读它）");
+    if (theme::begin_card("##ui", "界面", 3)) {
+        theme::slider_row("整体缩放", &g_ui_scale, 0.7f, 1.8f, "%.2fx");
+        theme::toggle_row("录屏时隐藏界面", &g_hide_on_capture, "自动藏起来");
     }
     theme::end_card();
     ImGui::Spacing();
@@ -179,6 +179,21 @@ void draw_placeholder(const char* title, const char* note) {
     ImGui::Spacing();
     if (theme::begin_card("##todo", nullptr, 3)) {
         theme::text_wrapped_dim(note);
+    }
+    theme::end_card();
+}
+
+// 修改器那几页在主菜单里没意义：读不到玩家/世界数据
+void draw_need_world(const char* page_name) {
+    theme::section_header(page_name, "修改器");
+    ImGui::Spacing();
+    if (theme::begin_card("##needworld", nullptr, 3)) {
+        ImGui::PushStyleColor(ImGuiCol_Text, theme::accent());
+        ImGui::TextUnformatted("进入地图后才能使用");
+        ImGui::PopStyleColor();
+        theme::text_wrapped_dim(
+            "这一页是直接读写游戏里的玩家/世界数据的，主菜单里还没有这些东西。\n"
+            "读档进地图之后回到这里，控制项就会出现。");
     }
     theme::end_card();
 }
@@ -263,6 +278,9 @@ void clear_panels(const std::string& name) {
 void set_ball_texture(void* tex) { g_ball_tex = tex; }
 
 float ui_scale() { return g_ui_scale; }
+
+bool hide_on_capture() { return g_hide_on_capture; }
+void set_hide_on_capture(bool v) { g_hide_on_capture = v; }
 
 void bounds(float* x, float* y, float* w, float* h) {
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -378,7 +396,12 @@ void draw() {
     ImGui::SameLine();
     ImGui::BeginChild("##content", ImVec2(0, mid_h), ImGuiChildFlags_None);
     {
-        switch (g_page) {
+        // 「修改器」那几页（自身/世界/实体/物品）**要进了地图才有意义** ——
+        // 主菜单里读不到玩家和世界数据，先给个提示。
+        // 其余页面（多选/网络/日志/脚本/设置）进游戏就能用。
+        if (g_page <= 3 && !cheat::in_world()) {
+            draw_need_world(kNav[g_page]);
+        } else switch (g_page) {
             case 0: cheat::draw_self_page(); break;
             case 1: cheat::draw_world_page(); break;
             case 2: draw_placeholder("实体", "NPC / 怪物列表、生成、一键清理。\n"

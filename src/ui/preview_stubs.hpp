@@ -92,5 +92,7 @@ inline std::string buff_name(int) { return {}; }
 
 // 预览器里"给物品"是空操作（真机上会真的写进背包）
 namespace cheat {
+inline bool g_stub_in_world = true;      // 预览器可用 --not-in-world 改成 false
+inline bool in_world() { return g_stub_in_world; }
 inline void give_item(int, int) {}
 }  // namespace cheat

@@ -22,6 +22,10 @@ void bounds(float* x, float* y, float* w, float* h);
 // 用户在「设置 → 界面」里调的整体缩放（渲染层在 NewFrame 之前应用）
 float ui_scale();
 
+// 防录屏：检测到录屏/投屏时要不要把界面藏起来（默认开，设置里可关）
+bool hide_on_capture();
+void set_hide_on_capture(bool v);
+
 // 往控制台日志里追加一行（线程安全）
 void log_line(const std::string& text);
 
