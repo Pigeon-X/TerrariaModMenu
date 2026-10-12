@@ -55,6 +55,12 @@ il2::Method* f_spawnY_get = nullptr;
 il2::Method* f_sand_get = nullptr;      // Main.sandStorm 也是属性
 il2::Method* f_sand_set = nullptr;
 
+// 沙尘暴的**真实**状态在独立类里，不在 Main 上（真机巡检发现的）：
+//   Terraria.GameContent.Events.Sandstorm.Happening / IntendedSeverity
+il2::Class* gSandstorm = nullptr;
+il2::Field* f_sandHappening = nullptr;
+il2::Field* f_sandIntended = nullptr;
+
 // 实体（NPC）字段
 il2::Field* f_npcArr;                   // Main.npc（NPC 数组）
 il2::Field* f_npcActive; il2::Field* f_npcLife; il2::Field* f_npcType;
@@ -330,6 +336,31 @@ bool init() {
         mm::logf("修改器：Main 属性 %d 个，含 layer 的：%s", pn, phits.empty() ? "（无）" : phits.c_str());
     }
 
+    // ---- 诊断：沙尘暴也没找到，同样把带 Storm 的名字列出来 ----------------------
+    if (!f_sandStorm && !f_sand_set) {
+        std::string hits;
+        void* it2 = nullptr;
+        while (il2::Field* fd = il2::class_get_fields(gMain, &it2)) {
+            const char* n = il2::field_get_name(fd);
+            if (n && (strstr(n, "torm") || strstr(n, "andstorm"))) {
+                if (!hits.empty()) hits += ", ";
+                hits += n;
+                hits += "=";
+                hits += il2::type_kind_name(field_kind(fd));
+            }
+        }
+        it2 = nullptr;
+        while (il2::Property* pr = il2::class_get_properties(gMain, &it2)) {
+            const char* n = il2::property_get_name(pr);
+            if (n && (strstr(n, "torm") || strstr(n, "andstorm"))) {
+                if (!hits.empty()) hits += ", ";
+                hits += n;
+                hits += "(属性)";
+            }
+        }
+        mm::logf("修改器：Main 里带 Storm 的名字：%s", hits.empty() ? "（无）" : hits.c_str());
+    }
+
     // ---- 实体（NPC）----
     // 字段名跟安卓版那套按名解析用的是同一批（NPC.active/life/type/friendly/whoAmI）
     gNpc = il2::class_from_name(img, "Terraria", "NPC");
@@ -345,6 +376,16 @@ bool init() {
     }
     mm::logf("修改器：NPC 类 %s，Main.npc %s，NPC.life %s",
              gNpc ? "有" : "无", f_npcArr ? "有" : "无", f_npcLife ? "有" : "无");
+
+    // 沙尘暴：状态不在 Main 上，单独解析这个类
+    gSandstorm = il2::class_from_name(img, "Terraria.GameContent.Events", "Sandstorm");
+    if (gSandstorm) {
+        f_sandHappening = il2::class_get_field_from_name(gSandstorm, "Happening");
+        f_sandIntended = il2::class_get_field_from_name(gSandstorm, "IntendedSeverity");
+    }
+    mm::logf("修改器：Sandstorm 类 %s，Happening %s，IntendedSeverity %s",
+             gSandstorm ? "有" : "无", f_sandHappening ? "有" : "无",
+             f_sandIntended ? "有" : "无");
 
     // 名字和指针成对存一份：没解析到的直接把**名字**打进日志，
     // 真机跑一次就知道哪个字段跟这个游戏版本对不上（不用靠猜）。
@@ -523,6 +564,9 @@ void tick() {
     if (c_sand) {
         write_auto(nullptr, f_sandStorm, true, kFlag);      // 是字段的话
         write_static_prop(f_sand_set, kFlag);               // 是属性的话
+        // 正主：Terraria.GameContent.Events.Sandstorm
+        write_auto(nullptr, f_sandHappening, true, 1.0);
+        write_auto(nullptr, f_sandIntended, true, 1.0);     // 强度拉满
     }
     if (c_wind) write_auto(nullptr, f_windSpeed, true, 60.0f);
     if (c_day) write_auto(nullptr, f_dayRate, true, 10.0f);      // 时间快进到白天
