@@ -86,6 +86,55 @@ void write_b(il2::Object* o, il2::Field* f, bool isStatic, bool v) {
     else if (o) il2::field_set_value(o, f, &b);
 }
 
+// 字段声明成什么类型（il2cpp_type_get_type 返回 Il2CppTypeEnum）
+int field_kind(il2::Field* f) {
+    if (!f) return 0;
+    il2::Type* t = il2::field_get_type(f);
+    return t ? il2::type_get_type(t) : 0;
+}
+
+// 按字段**声明的类型**写入。
+// 以前是不管类型、按调用方给的宽度硬写：
+//   · 字段其实是 int、却按 1 字节写 -> 只写低 1 字节，等于没效果
+//   · 字段其实是 bool、却按 4 字节写 -> 把相邻内存写坏（可能直接崩）
+// il2cpp_field_set_value 是按字段大小拷贝的，所以整数类统一给一个 4 字节缓冲
+// 就够了（小端，低字节优先）。
+void write_auto(il2::Object* o, il2::Field* f, bool isStatic, double v) {
+    if (!f) return;
+    switch (field_kind(f)) {
+        case il2::TK_BOOL: {
+            uint8_t b = (v != 0.0) ? 1 : 0;
+            if (isStatic) il2::field_static_set_value(f, &b);
+            else if (o) il2::field_set_value(o, f, &b);
+            break;
+        }
+        case il2::TK_R4: {
+            float x = (float)v;
+            if (isStatic) il2::field_static_set_value(f, &x);
+            else if (o) il2::field_set_value(o, f, &x);
+            break;
+        }
+        case il2::TK_R8: {
+            double d = v;
+            if (isStatic) il2::field_static_set_value(f, &d);
+            else if (o) il2::field_set_value(o, f, &d);
+            break;
+        }
+        case il2::TK_I8: {
+            int64_t i = (int64_t)v;
+            if (isStatic) il2::field_static_set_value(f, &i);
+            else if (o) il2::field_set_value(o, f, &i);
+            break;
+        }
+        default: {      // i32 / u32 / i16 / u8 都走这里
+            int32_t i = (int32_t)v;
+            if (isStatic) il2::field_static_set_value(f, &i);
+            else if (o) il2::field_set_value(o, f, &i);
+            break;
+        }
+    }
+}
+
 // 取当前玩家对象（Main.player[Main.myPlayer]）
 il2::Object* me() {
     if (!gReady || !f_myPlayer || !f_playerArr) return nullptr;
@@ -154,7 +203,9 @@ bool init() {
     f_myPlayer = F(gMain, "myPlayer");            f_playerArr = F(gMain, "player");
     f_dayRate = F(gMain, "dayRate");              f_time = F(gMain, "time");
     f_bloodMoon = F(gMain, "bloodMoon");          f_eclipse = F(gMain, "eclipse");
-    f_rain = F(gMain, "rain");                    f_sandStorm = F(gMain, "sandStorm");
+    // 这两个字段名/类型不太确定，给候选让它在真机上自己报命中哪个
+    f_rain = pick(gMain, {"raining", "rain"}, "下雨字段");
+    f_sandStorm = pick(gMain, {"sandStorm", "sandstorm", "sandStormHud"}, "沙尘暴字段");
     f_windSpeed = F(gMain, "windSpeedCurrent");   f_hardMode = F(gMain, "hardMode");
     f_mouseX = F(gMain, "mouseX");                f_mouseY = F(gMain, "mouseY");
     f_gameMenu = F(gMain, "gameMenu");
@@ -208,6 +259,51 @@ bool init() {
     }
     if (miss.empty()) mm::logf("修改器：字段解析 %d/%d 全部命中", ok, total);
     else mm::logf("修改器：字段解析 %d/%d，没解析到：%s", ok, total, miss.c_str());
+
+    // ---- 字段类型体检 ------------------------------------------------------
+    // 名字对了不代表类型对。类型错的后果：按 1 字节写 int 字段 = 没效果；
+    // 按 4 字节写 bool 字段 = 把相邻内存写坏（可能直接崩）。
+    // 这里把「我们打算怎么写」跟「字段实际声明成什么」对一遍，日志里看结论。
+    // （写入侧已经改成 write_auto 按真实类型走了，这里只是把差异报出来。）
+    {
+        struct TypeChk { const char* name; il2::Field* f; int want; };
+        const TypeChk chks[] = {
+            {"statLife", f_statLife, il2::TK_I4},
+            {"statMana", f_statMana, il2::TK_I4},
+            {"immune", f_immune, il2::TK_BOOL},
+            {"noFallDmg", f_noFallDmg, il2::TK_BOOL},
+            {"ignoreWater", f_ignoreWater, il2::TK_BOOL},
+            {"fireWalk", f_fireWalk, il2::TK_BOOL},
+            {"invis", f_invis, il2::TK_BOOL},
+            {"moveSpeed", f_moveSpeed, il2::TK_R4},
+            {"wingTime", f_wingTime, il2::TK_R4},
+            {"statDefense", f_statDefense, il2::TK_I4},
+            {"endurance", f_endurance, il2::TK_R4},
+            {"dayRate", f_dayRate, il2::TK_R4},
+            {"bloodMoon", f_bloodMoon, il2::TK_BOOL},
+            {"eclipse", f_eclipse, il2::TK_BOOL},
+            {"rain", f_rain, il2::TK_R4},
+            {"sandStorm", f_sandStorm, il2::TK_R4},
+            {"windSpeedCurrent", f_windSpeed, il2::TK_R4},
+            {"hardMode", f_hardMode, il2::TK_BOOL},
+        };
+        std::string bad;
+        int checked = 0;
+        for (const auto& c : chks) {
+            if (!c.f) continue;
+            ++checked;
+            const int got = field_kind(c.f);
+            if (got == c.want) continue;
+            if (!bad.empty()) bad += "  ";
+            bad += c.name;
+            bad += " 实际=";
+            bad += il2::type_kind_name(got);
+            bad += " 预期=";
+            bad += il2::type_kind_name(c.want);
+        }
+        if (bad.empty()) mm::logf("修改器：字段类型体检通过（%d 项）", checked);
+        else mm::logf("修改器：字段类型与预期不符 -> %s", bad.c_str());
+    }
     if (!f_playerArr || !f_myPlayer) { log_missing("Main.player/myPlayer"); return false; }
 
     gReady = true;
@@ -242,42 +338,52 @@ void tick() {
     il2::Object* p = me();
     if (!p) return;
 
+    // ⚠️ 一律用 write_auto：它按字段**声明的类型**写，
+    //    不像以前那样按调用方给的宽度硬写（类型不符会把相邻内存写坏）。
+    //    另外「开关类」字段统一写 3600 而不是 1 —— 万一它其实是个计时器
+    //    （比如 Player.immune 是免疫帧数），写 1 只顶 1 帧等于没效果；
+    //    写 3600 两种情况都对：bool 非零即为真，int 就是 60 秒免疫。
+    const double kFlag = 3600.0;
+
     if (c_god) {
-        write_b(p, f_immune, false, true);
+        write_auto(p, f_immune, false, kFlag);
         int32_t mx = read_i(p, f_statLifeMax2, false, 100);
-        write_i(p, f_statLife, false, mx);
+        write_auto(p, f_statLife, false, mx);
     }
     if (c_infMana) {
         int32_t mx = read_i(p, f_statManaMax2, false, 20);
-        write_i(p, f_statMana, false, mx);
+        write_auto(p, f_statMana, false, mx);
     }
-    if (c_noFall) write_b(p, f_noFallDmg, false, true);
-    if (c_water) write_b(p, f_ignoreWater, false, true);
+    if (c_noFall) write_auto(p, f_noFallDmg, false, kFlag);
+    if (c_water) write_auto(p, f_ignoreWater, false, kFlag);
     if (c_lava) {
-        // 走岩浆 + 免疫：两个字段能中哪个就写哪个（都写也不冲突）
-        write_b(p, f_fireWalk, false, true);
-        write_b(p, f_lavaImmune, false, true);
-        write_b(p, f_hasMolten, false, true);
+        // 走岩浆 + 免疫：几个候选字段能中哪个就写哪个（都写也不冲突）
+        write_auto(p, f_fireWalk, false, kFlag);
+        write_auto(p, f_lavaImmune, false, kFlag);
+        write_auto(p, f_hasMolten, false, kFlag);
     }
-    if (c_invis) write_b(p, f_invis, false, true);
-    if (c_speed) write_f(p, f_moveSpeed, false, v_speed);
+    if (c_invis) write_auto(p, f_invis, false, kFlag);
+    if (c_speed) write_auto(p, f_moveSpeed, false, v_speed);
     if (c_fly) {
         float mx = read_f(p, f_wingTimeMax, false, 0);
         if (mx <= 0) mx = 300.0f;
-        write_f(p, f_wingTime, false, mx);
+        write_auto(p, f_wingTime, false, mx);
     }
-    if (c_defense) { write_i(p, f_statDefense, false, 9999); write_f(p, f_endurance, false, 1.0f); }
+    if (c_defense) {
+        write_auto(p, f_statDefense, false, 9999);
+        write_auto(p, f_endurance, false, 1.0f);
+    }
 
     // 世界（这些是 Main 的静态字段）
-    if (c_hardMode) write_b(nullptr, f_hardMode, true, true);
-    if (c_bloodMoon) write_b(nullptr, f_bloodMoon, true, true);
-    if (c_eclipse) write_b(nullptr, f_eclipse, true, true);
-    if (c_rain) write_f(nullptr, f_rain, true, 1.0f);
-    if (c_sand) write_f(nullptr, f_sandStorm, true, 1.0f);
-    if (c_wind) write_f(nullptr, f_windSpeed, true, 60.0f);
-    if (c_day) write_f(nullptr, f_dayRate, true, 10.0f);      // 时间快进到白天
-    if (c_night) write_f(nullptr, f_dayRate, true, -10.0f);
-    if (c_freezeTime) write_f(nullptr, f_dayRate, true, 0.0f);
+    if (c_hardMode) write_auto(nullptr, f_hardMode, true, kFlag);
+    if (c_bloodMoon) write_auto(nullptr, f_bloodMoon, true, kFlag);
+    if (c_eclipse) write_auto(nullptr, f_eclipse, true, kFlag);
+    if (c_rain) write_auto(nullptr, f_rain, true, kFlag);
+    if (c_sand) write_auto(nullptr, f_sandStorm, true, kFlag);
+    if (c_wind) write_auto(nullptr, f_windSpeed, true, 60.0f);
+    if (c_day) write_auto(nullptr, f_dayRate, true, 10.0f);      // 时间快进到白天
+    if (c_night) write_auto(nullptr, f_dayRate, true, -10.0f);
+    if (c_freezeTime) write_auto(nullptr, f_dayRate, true, 0.0f);
 }
 
 void load_state() {

@@ -98,6 +98,35 @@ IL2_WRAP(Type*, method_get_param, "il2cpp_method_get_param",
 
 // 类型信息（参数封送要用）
 IL2_WRAP(int, type_get_type, "il2cpp_type_get_type", (Type* t), (t))
+
+// il2cpp_type_get_type 返回的 Il2CppTypeEnum（只列我们用得到的）
+enum TypeKind {
+    TK_END = 0x00, TK_VOID = 0x01, TK_BOOL = 0x02, TK_CHAR = 0x03,
+    TK_I1 = 0x04, TK_U1 = 0x05, TK_I2 = 0x06, TK_U2 = 0x07,
+    TK_I4 = 0x08, TK_U4 = 0x09, TK_I8 = 0x0A, TK_U8 = 0x0B,
+    TK_R4 = 0x0C, TK_R8 = 0x0D, TK_STRING = 0x0E, TK_PTR = 0x0F,
+    TK_VALUETYPE = 0x11, TK_CLASS = 0x12, TK_ARRAY = 0x14,
+    TK_OBJECT = 0x1C, TK_SZARRAY = 0x1D,
+};
+
+// 给日志用：把类型枚举变成短名
+inline const char* type_kind_name(int k) {
+    switch (k) {
+        case TK_BOOL: return "bool";
+        case TK_U1:   return "u8";
+        case TK_I2:   return "i16";
+        case TK_I4:   return "i32";
+        case TK_U4:   return "u32";
+        case TK_I8:   return "i64";
+        case TK_R4:   return "f32";
+        case TK_R8:   return "f64";
+        case TK_STRING: return "str";
+        case TK_CLASS:  return "class";
+        case TK_VALUETYPE: return "struct";
+        case TK_SZARRAY: case TK_ARRAY: return "array";
+        default: return "?";
+    }
+}
 IL2_WRAP(const char*, type_get_name, "il2cpp_type_get_name", (Type* t), (t))
 IL2_WRAP(Class*, class_get_element_class, "il2cpp_class_get_element_class", (Class* k), (k))
 IL2_WRAP(int32_t, class_array_element_size, "il2cpp_class_array_element_size", (Class* k), (k))
