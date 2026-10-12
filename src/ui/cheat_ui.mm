@@ -61,11 +61,23 @@ void draw_self_page() {
     theme::section_header("自身", "self · 玩家状态与移动");
     ImGui::Spacing();
 
-    if (theme::begin_card("##card_status", "玩家状态", 4)) {
+    if (theme::begin_card("##card_status", "玩家状态", 6)) {
         theme::toggle_row("无限生命", &c_god, "免疫伤害 + 血量拉满");
         theme::toggle_row("无限魔力", &c_infMana, "魔力常满");
         theme::toggle_row("防御拉满", &c_defense, "防御 9999 + 减伤 100%");
         theme::toggle_row("隐身", &c_invis, "怪物看不见你");
+        theme::toggle_row("无视击退", &c_noKnockback, nullptr);
+        theme::toggle_row("快速回血", &c_regen, nullptr);
+    }
+    theme::end_card();
+    ImGui::Spacing();
+
+    if (theme::begin_card("##card_actions", "角色处理", 1)) {
+        const float bw = ImGui::GetFontSize() * 9.0f;
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::accent_dim());
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accent());
+        if (ImGui::Button("回满生命与魔力", ImVec2(bw, 0))) heal_full();
+        ImGui::PopStyleColor(2);
     }
     theme::end_card();
     ImGui::Spacing();
@@ -93,7 +105,7 @@ void draw_world_page() {
     theme::section_header("世界", "world · 时间与事件");
     ImGui::Spacing();
 
-    if (theme::begin_card("##card_time", "时间", 2)) {
+    if (theme::begin_card("##card_time", "时间", 5)) {
         static const char* const kTime[] = {"白天快进", "夜晚快进", "冻结时间"};
         const int cur = c_day ? 0 : (c_night ? 1 : (c_freezeTime ? 2 : -1));
         const int hit = seg_button(kTime, 3, cur);
@@ -101,7 +113,20 @@ void draw_world_page() {
             if (hit == cur) pick_time(-1);      // 再点一次 = 取消
             else pick_time(hit);
         }
-        theme::text_dim("dayRate = %+.0f", c_day ? 10.0f : (c_night ? -10.0f : 0.0f));
+        theme::text_dim("流速 dayRate = %+.0f", c_day ? 10.0f : (c_night ? -10.0f : 0.0f));
+
+        // 直接跳到某个时刻（会连 dayTime 一起设，时钟才对）
+        const double hh = world_time_of_day();
+        if (hh >= 0) {
+            const int h = (int)hh;
+            const int m = (int)((hh - h) * 60.0 + 0.5);
+            theme::text_dim("现在是 %02d:%02d", h, m);
+        } else {
+            theme::text_dim("现在是 —（还没进地图）");
+        }
+        static const char* const kPreset[] = {"清晨", "正午", "黄昏", "午夜"};
+        const int ph = seg_button(kPreset, 4, -1);
+        if (ph >= 0) set_world_time(ph);
     }
     theme::end_card();
     ImGui::Spacing();

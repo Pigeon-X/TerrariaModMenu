@@ -115,4 +115,7 @@ inline int npc_stats(int* alive, int* hostile) {
 }
 inline int kill_npcs(bool) { return 0; }
 inline int spawn_npc(int, int) { return 1; }
+inline void heal_full() {}
+inline void set_world_time(int) {}
+inline double world_time_of_day() { return 12.35; }   // 假时钟：12:21
 }  // namespace cheat

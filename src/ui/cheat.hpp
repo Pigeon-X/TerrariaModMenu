@@ -34,6 +34,14 @@ int  kill_npcs(bool hostile_only);
 // 在玩家附近生成 count 个 type 号 NPC。返回成功几个
 int  spawn_npc(int type, int count);
 
+// ---- 动作类（点一下就生效，不是开关）--------------------------------------
+// 把生命和魔力补满
+void heal_full();
+// 设置世界时间：0=清晨 1=正午 2=黄昏 3=午夜（会连 dayTime 一起设，时钟才对）
+void set_world_time(int preset);
+// 读当前游戏内时刻，返回 0..24 的小时（拿不到返回 -1）
+double world_time_of_day();
+
 // 配置持久化（C 档）
 void load_state();
 

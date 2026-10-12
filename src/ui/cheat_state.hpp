@@ -20,6 +20,8 @@ inline bool c_defense = false;      // 防御拉满
 inline bool c_speed = false;        // 移动加速
 inline float v_speed = 2.0f;        // 加速倍率
 inline bool c_fly = false;          // 无限飞行
+inline bool c_noKnockback = false;  // 无视击退
+inline bool c_regen = false;        // 快速回血
 
 // ---- 世界 ------------------------------------------------------------------
 inline bool c_hardMode = false;

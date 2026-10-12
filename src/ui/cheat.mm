@@ -39,6 +39,9 @@ il2::Field* f_windSpeed; il2::Field* f_hardMode;
 il2::Field* f_mouseX; il2::Field* f_mouseY;
 il2::Field* f_gameMenu;                 // Main.gameMenu：true = 还在主菜单，没进地图
 il2::Field* f_playerPos;                // Player.position（生成 NPC 时用来定位）
+il2::Field* f_noKnockback;              // Player.noKnockback
+il2::Field* f_lifeRegen;                // Player.lifeRegen（回血计数）
+il2::Field* f_dayTime;                  // Main.dayTime（白天/黑夜）
 
 // 实体（NPC）字段
 il2::Field* f_npcArr;                   // Main.npc（NPC 数组）
@@ -209,6 +212,10 @@ bool init() {
     f_windSpeed = F(gMain, "windSpeedCurrent");   f_hardMode = F(gMain, "hardMode");
     f_mouseX = F(gMain, "mouseX");                f_mouseY = F(gMain, "mouseY");
     f_gameMenu = F(gMain, "gameMenu");
+    f_dayTime = F(gMain, "dayTime");
+    // 这两个名字不确定，给候选让日志报命中
+    f_noKnockback = pick(gPlayer, {"noKnockback"}, "无视击退字段");
+    f_lifeRegen = pick(gPlayer, {"lifeRegen", "lifeRegenCount"}, "回血字段");
 
     // ---- 实体（NPC）----
     // 字段名跟安卓版那套按名解析用的是同一批（NPC.active/life/type/friendly/whoAmI）
@@ -244,6 +251,8 @@ bool init() {
         {"sandStorm", f_sandStorm},     {"windSpeedCurrent", f_windSpeed},
         {"hardMode", f_hardMode},       {"gameMenu", f_gameMenu},
         {"Player.position", f_playerPos},
+        {"noKnockback", f_noKnockback}, {"lifeRegen", f_lifeRegen},
+        {"dayTime", f_dayTime},
         {"Main.npc", f_npcArr},         {"npc.active", f_npcActive},
         {"npc.life", f_npcLife},        {"npc.type", f_npcType},
         {"npc.friendly", f_npcFriendly}, {"npc.whoAmI", f_npcWhoAmI},
@@ -286,6 +295,9 @@ bool init() {
             {"sandStorm", f_sandStorm, il2::TK_R4},
             {"windSpeedCurrent", f_windSpeed, il2::TK_R4},
             {"hardMode", f_hardMode, il2::TK_BOOL},
+            {"noKnockback", f_noKnockback, il2::TK_BOOL},
+            {"lifeRegen", f_lifeRegen, il2::TK_I4},
+            {"dayTime", f_dayTime, il2::TK_BOOL},
         };
         std::string bad;
         int checked = 0;
@@ -312,7 +324,8 @@ bool init() {
 
 bool active() {
     return c_god || c_infMana || c_noFall || c_water || c_lava || c_invis || c_speed ||
-           c_fly || c_defense || c_day || c_night || c_freezeTime || c_rain || c_sand ||
+           c_fly || c_defense || c_noKnockback || c_regen ||
+           c_day || c_night || c_freezeTime || c_rain || c_sand ||
            c_wind || c_bloodMoon || c_eclipse || c_hardMode;
 }
 
@@ -363,6 +376,8 @@ void tick() {
         write_auto(p, f_hasMolten, false, kFlag);
     }
     if (c_invis) write_auto(p, f_invis, false, kFlag);
+    if (c_noKnockback) write_auto(p, f_noKnockback, false, kFlag);
+    if (c_regen) write_auto(p, f_lifeRegen, false, 120);   // 回血计数拉高 = 快速回复
     if (c_speed) write_auto(p, f_moveSpeed, false, v_speed);
     if (c_fly) {
         float mx = read_f(p, f_wingTimeMax, false, 0);
@@ -548,6 +563,55 @@ int spawn_npc(int type, int count) {
     }
     mm::logf("修改器：生成 NPC type=%d x%d（成功 %d）", type, count, made);
     return made;
+}
+
+// ---------------------------------------------------------------------------
+// 动作类（点一下就生效）
+// ---------------------------------------------------------------------------
+void heal_full() {
+    if (!gReady && !init()) return;
+    il2::Object* p = me();
+    if (!p) { mm::logf("修改器：回满失败（不在世界里？）"); return; }
+    const int32_t life_max = read_i(p, f_statLifeMax2, false, 100);
+    const int32_t mana_max = read_i(p, f_statManaMax2, false, 20);
+    write_auto(p, f_statLife, false, life_max);
+    write_auto(p, f_statMana, false, mana_max);
+    mm::logf("修改器：已回满生命 %d / 魔力 %d", life_max, mana_max);
+}
+
+// Terraria 的时间：白天 time 0..54000 对应 4:30→19:30；
+// 夜里 time 0..32400 对应 19:30→次日 4:30。
+void set_world_time(int preset) {
+    if (!gReady && !init()) return;
+    if (!f_time) return;
+    double t = 0;
+    bool day = true;
+    switch (preset) {
+        case 1: day = true;  t = 27000; break;   // 正午 12:00
+        case 2: day = true;  t = 54000; break;   // 黄昏 19:30（白天末尾）
+        case 3: day = false; t = 16200; break;   // 午夜 00:00
+        default: day = true; t = 0; break;       // 清晨 04:30（白天开头）
+    }
+    // dayTime 要先设：游戏每帧会按它算昼夜，先改 time 再改 dayTime 会被覆盖掉一帧
+    write_auto(nullptr, f_dayTime, true, day ? 1.0 : 0.0);
+    write_auto(nullptr, f_time, true, t);
+    mm::logf("修改器：时间已设为 %s（time=%.0f）", day ? "白天" : "夜晚", t);
+}
+
+double world_time_of_day() {
+    if (!gReady && !init()) return -1;
+    if (!f_time) return -1;
+    double t = 0;
+    il2::field_static_get_value(f_time, &t);
+    const bool day = f_dayTime ? read_b(nullptr, f_dayTime, true) : true;
+    double hours;
+    if (day) {
+        hours = 4.5 + (t / 54000.0) * 15.0;          // 04:30 → 19:30
+    } else {
+        hours = 19.5 + (t / 32400.0) * 9.0;          // 19:30 → 次日 04:30
+    }
+    while (hours >= 24.0) hours -= 24.0;
+    return hours;
 }
 
 }  // namespace cheat
