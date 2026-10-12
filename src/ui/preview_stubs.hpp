@@ -118,4 +118,12 @@ inline int spawn_npc(int, int) { return 1; }
 inline void heal_full() {}
 inline void set_world_time(int) {}
 inline double world_time_of_day() { return 12.35; }   // 假时钟：12:21
+inline void player_stats(int* life, int* lm, int* mana, int* mm, int* def) {
+    if (life) *life = 87;
+    if (lm) *lm = 140;
+    if (mana) *mana = 33;
+    if (mm) *mm = 60;
+    if (def) *def = 9999;
+}
+inline bool teleport_to_spawn() { return true; }
 }  // namespace cheat

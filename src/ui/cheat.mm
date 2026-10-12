@@ -42,6 +42,7 @@ il2::Field* f_playerPos;                // Player.position（生成 NPC 时用�
 il2::Field* f_noKnockback;              // Player.noKnockback
 il2::Field* f_lifeRegen;                // Player.lifeRegen（回血计数）
 il2::Field* f_dayTime;                  // Main.dayTime（白天/黑夜）
+il2::Field* f_spawnX; il2::Field* f_spawnY;   // Main.spawnTileX / spawnTileY
 
 // 实体（NPC）字段
 il2::Field* f_npcArr;                   // Main.npc（NPC 数组）
@@ -216,6 +217,8 @@ bool init() {
     // 这两个名字不确定，给候选让日志报命中
     f_noKnockback = pick(gPlayer, {"noKnockback"}, "无视击退字段");
     f_lifeRegen = pick(gPlayer, {"lifeRegen", "lifeRegenCount"}, "回血字段");
+    f_spawnX = F(gMain, "spawnTileX");
+    f_spawnY = F(gMain, "spawnTileY");
 
     // ---- 实体（NPC）----
     // 字段名跟安卓版那套按名解析用的是同一批（NPC.active/life/type/friendly/whoAmI）
@@ -253,6 +256,7 @@ bool init() {
         {"Player.position", f_playerPos},
         {"noKnockback", f_noKnockback}, {"lifeRegen", f_lifeRegen},
         {"dayTime", f_dayTime},
+        {"spawnTileX", f_spawnX},       {"spawnTileY", f_spawnY},
         {"Main.npc", f_npcArr},         {"npc.active", f_npcActive},
         {"npc.life", f_npcLife},        {"npc.type", f_npcType},
         {"npc.friendly", f_npcFriendly}, {"npc.whoAmI", f_npcWhoAmI},
@@ -612,6 +616,41 @@ double world_time_of_day() {
     }
     while (hours >= 24.0) hours -= 24.0;
     return hours;
+}
+
+void player_stats(int* life, int* life_max, int* mana, int* mana_max, int* defense) {
+    int l = 0, lm = 0, m = 0, mm = 0, d = 0;
+    if ((gReady || init())) {
+        if (il2::Object* p = me()) {
+            l = read_i(p, f_statLife, false, 0);
+            lm = read_i(p, f_statLifeMax2, false, 0);
+            m = read_i(p, f_statMana, false, 0);
+            mm = read_i(p, f_statManaMax2, false, 0);
+            d = read_i(p, f_statDefense, false, 0);
+        }
+    }
+    if (life) *life = l;
+    if (life_max) *life_max = lm;
+    if (mana) *mana = m;
+    if (mana_max) *mana_max = mm;
+    if (defense) *defense = d;
+}
+
+bool teleport_to_spawn() {
+    if (!gReady && !init()) return false;
+    il2::Object* p = me();
+    if (!p || !f_spawnX || !f_spawnY || !f_playerPos) {
+        mm::logf("修改器：传送失败（玩家或出生点字段没解析到）");
+        return false;
+    }
+    int32_t tx = 0, ty = 0;
+    il2::field_static_get_value(f_spawnX, &tx);
+    il2::field_static_get_value(f_spawnY, &ty);
+    // 方块坐标 -> 世界坐标：每格 16 像素
+    struct V2 { float x, y; } pos{(float)(tx * 16), (float)(ty * 16)};
+    il2::field_set_value(p, f_playerPos, &pos);
+    mm::logf("修改器：已传送到出生点（格子 %d,%d）", tx, ty);
+    return true;
 }
 
 }  // namespace cheat

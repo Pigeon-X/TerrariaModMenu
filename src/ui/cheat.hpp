@@ -42,6 +42,13 @@ void set_world_time(int preset);
 // 读当前游戏内时刻，返回 0..24 的小时（拿不到返回 -1）
 double world_time_of_day();
 
+// 读玩家当前数值（生命/魔力/防御）。拿不到就把它们置 0。
+// 界面用它做**实时显示** —— 开了开关能当场看见数字变化，就知道生效没有。
+void player_stats(int* life, int* life_max, int* mana, int* mana_max, int* defense);
+
+// 传送到世界出生点。返回是否成功
+bool teleport_to_spawn();
+
 // 配置持久化（C 档）
 void load_state();
 

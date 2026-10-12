@@ -61,6 +61,32 @@ void draw_self_page() {
     theme::section_header("自身", "self · 玩家状态与移动");
     ImGui::Spacing();
 
+    // 实时数值 —— 开了开关能当场看见数字变，就不用猜"到底生效没有"
+    {
+        int life = 0, life_max = 0, mana = 0, mana_max = 0, def = 0;
+        player_stats(&life, &life_max, &mana, &mana_max, &def);
+        if (theme::begin_card("##card_live", "实时数值", 1)) {
+            const bool no_player = (life_max == 0 && mana_max == 0);
+            if (no_player) {
+                theme::text_dim("读不到玩家数据（还没进地图？）");
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::accent());
+                ImGui::Text("生命 %d / %d", life, life_max);
+                ImGui::PopStyleColor();
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::accent());
+                ImGui::Text("魔力 %d / %d", mana, mana_max);
+                ImGui::PopStyleColor();
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::accent());
+                ImGui::Text("防御 %d", def);
+                ImGui::PopStyleColor();
+            }
+        }
+        theme::end_card();
+        ImGui::Spacing();
+    }
+
     if (theme::begin_card("##card_status", "玩家状态", 6)) {
         theme::toggle_row("无限生命", &c_god, "免疫伤害 + 血量拉满");
         theme::toggle_row("无限魔力", &c_infMana, "魔力常满");
@@ -77,6 +103,8 @@ void draw_self_page() {
         ImGui::PushStyleColor(ImGuiCol_Button, theme::accent_dim());
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accent());
         if (ImGui::Button("回满生命与魔力", ImVec2(bw, 0))) heal_full();
+        ImGui::SameLine();
+        if (ImGui::Button("传送到出生点", ImVec2(bw, 0))) teleport_to_spawn();
         ImGui::PopStyleColor(2);
     }
     theme::end_card();
