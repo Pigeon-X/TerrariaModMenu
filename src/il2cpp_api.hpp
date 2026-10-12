@@ -165,6 +165,7 @@ IL2_WRAP(Method*, property_get_get_method, "il2cpp_property_get_get_method",
          (Property* p), (p))
 IL2_WRAP(Method*, property_get_set_method, "il2cpp_property_get_set_method",
          (Property* p), (p))
+IL2_WRAP(const char*, property_get_name, "il2cpp_property_get_name", (Property* p), (p))
 
 // 对象 / 字符串 / 数组
 IL2_WRAP(Class*, object_get_class, "il2cpp_object_get_class", (Object* o), (o))

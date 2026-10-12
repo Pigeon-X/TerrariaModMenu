@@ -92,7 +92,18 @@ def _min_section_offset(data, cmds):
 
 
 def _zero_code_signature(out):
-    """把 LC_CODE_SIGNATURE 标记成空签名，交给重签工具重建。"""
+    """把 LC_CODE_SIGNATURE 标记成空签名（dataoff=0, datasize=0）。
+
+    ⚠️ 默认**不要**走这里。TrollStore 用的是 ldid，而 ldid 重签时会按
+    LC_CODE_SIGNATURE 的 dataoff 把文件截断、再在末尾追加新签名；
+    dataoff=0 会让它截到 0 字节，紧接着 `assert(end <= size)` 直接炸：
+
+        ldid.cpp(1483): _assert(): end <= size
+        trollstorehelper returning 175
+
+    真实的 App Store 包本来就是带签名的，重签工具（ldid / Sideloadly）
+    都是"替换"签名 —— 所以保留原来的 LC_CODE_SIGNATURE 才是对的。
+    """
     _ft, _n, _sz, cmds = _load_commands(bytes(out))
     for off, cmd, _size in cmds:
         if (cmd & 0x7FFFFFFF) == LC_CODE_SIGNATURE:
@@ -101,7 +112,7 @@ def _zero_code_signature(out):
     return False
 
 
-def patch_macho(data, dylib_path, strip_codesig=True):
+def patch_macho(data, dylib_path, strip_codesig=False):
     """在 load commands 末尾插入一条 LC_LOAD_DYLIB。"""
     filetype, ncmds, sizeofcmds, cmds = _load_commands(data)
 
@@ -167,8 +178,8 @@ def main():
     ap.add_argument("--dylib", default="build/TerrariaModMenu.dylib", help="要注入的 dylib")
     ap.add_argument("--framework", default=DYLIB_INSTALL_NAME,
                     help="写进 load command 的路径")
-    ap.add_argument("--keep-codesig", action="store_true",
-                    help="不把旧的 LC_CODE_SIGNATURE 置空")
+    ap.add_argument("--strip-codesig", action="store_true",
+                    help="把旧的 LC_CODE_SIGNATURE 置空（默认**不**这么做，见下）")
     args = ap.parse_args()
 
     if not os.path.isfile(args.ipa):
@@ -201,7 +212,7 @@ def main():
     exe_data = zf.read(exe_path)
     log(f"原始可执行文件 {len(exe_data):,} 字节")
     patched = patch_macho(exe_data, args.framework,
-                          strip_codesig=not args.keep_codesig)
+                          strip_codesig=args.strip_codesig)
 
     # 注意：dylib 可能原本不在包里（首次注入），所以两个都要放进 replace；
     # 主循环里遇到同名条目就替换，循环结束后剩下的作为新条目补写。

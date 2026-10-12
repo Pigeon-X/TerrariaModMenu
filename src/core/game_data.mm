@@ -50,13 +50,18 @@ std::vector<std::pair<int, std::string>> scan(il2::Method* m, std::map<int, std:
 
 bool init() {
     if (g_itemName) return true;
-    if (!il2::ready() || g_tried) return false;
-    g_tried = true;
+    // 注意：这里**不能**像以前那样"只试一次"。
+    // 真机日志里出现过「全表已建 —— 物品 0 / NPC 0 / Buff 0 项」：
+    // 第一次调用时 IL2CPP 恰好还没就绪，g_tried 被置上后就再也不重试，
+    // 于是物品/NPC/Buff 三个表永远是空的（搜索页全空）。
+    // 改成"没就绪就下次再来"，并且每条失败路径都打日志。
+    if (!il2::ready()) return false;
 
     il2::Domain* d = il2::domain_get();
+    if (!d) { mm::logf("数据层：domain 拿不到"); return false; }
     il2::Assembly* a = il2::domain_assembly_open(d, "Assembly-CSharp");
     il2::Image* img = a ? il2::assembly_get_image(a) : nullptr;
-    if (!img) return false;
+    if (!img) { mm::logf("数据层：拿不到 Assembly-CSharp 镜像"); return false; }
     il2::Class* lang = il2::class_from_name(img, "Terraria", "Lang");
     if (!lang) { mm::logf("数据层：找不到 Terraria.Lang"); return false; }
 

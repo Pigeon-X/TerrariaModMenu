@@ -44,6 +44,17 @@ il2::Field* f_lifeRegen;                // Player.lifeRegen（回血计数）
 il2::Field* f_dayTime;                  // Main.dayTime（白天/黑夜）
 il2::Field* f_spawnX; il2::Field* f_spawnY;   // Main.spawnTileX / spawnTileY
 
+// 这一版里 player / myPlayer / gameMenu / spawnTileX 是**属性**不是字段
+// （真机日志里自检打的就是「Main.gameMenu getter」）。
+// 字段查不到时退回用这些 getter 读 —— 没有它们整个修改器都初始化不了。
+il2::Method* f_myPlayer_get = nullptr;
+il2::Method* f_playerArr_get = nullptr;
+il2::Method* f_gameMenu_get = nullptr;
+il2::Method* f_spawnX_get = nullptr;
+il2::Method* f_spawnY_get = nullptr;
+il2::Method* f_sand_get = nullptr;      // Main.sandStorm 也是属性
+il2::Method* f_sand_set = nullptr;
+
 // 实体（NPC）字段
 il2::Field* f_npcArr;                   // Main.npc（NPC 数组）
 il2::Field* f_npcActive; il2::Field* f_npcLife; il2::Field* f_npcType;
@@ -139,13 +150,57 @@ void write_auto(il2::Object* o, il2::Field* f, bool isStatic, double v) {
     }
 }
 
+// 静态属性：调 setter 写值。先看 setter 的参数是什么类型再决定传几字节 ——
+// 传错宽度会把相邻内存写坏。参数类型拿不到就不写。
+void write_static_prop(il2::Method* setter, double v) {
+    if (!setter) return;
+    il2::Type* pt = il2::method_get_param(setter, 0);
+    const int tk = pt ? il2::type_get_type(pt) : 0;
+    void* exc = nullptr;
+    if (tk == il2::TK_BOOL) {
+        uint8_t b = (v != 0.0) ? 1 : 0;
+        void* a[1] = {&b};
+        il2::runtime_invoke(setter, nullptr, a, &exc);
+    } else if (tk == il2::TK_R4) {
+        float f = (float)v;
+        void* a[1] = {&f};
+        il2::runtime_invoke(setter, nullptr, a, &exc);
+    } else if (tk == il2::TK_R8) {
+        double d = v;
+        void* a[1] = {&d};
+        il2::runtime_invoke(setter, nullptr, a, &exc);
+    } else {
+        int32_t i = (int32_t)v;
+        void* a[1] = {&i};
+        il2::runtime_invoke(setter, nullptr, a, &exc);
+    }
+}
+
+// ---- 属性读取（值类型 getter 返回的是装箱对象，要 unbox）--------------------
+il2::Object* call_static_getter(il2::Method* g) {
+    if (!g) return nullptr;
+    void* exc = nullptr;
+    return il2::runtime_invoke(g, nullptr, nullptr, &exc);
+}
+int32_t static_getter_int(il2::Method* g, int32_t def) {
+    il2::Object* o = call_static_getter(g);
+    if (!o) return def;
+    void* p = il2::object_unbox(o);
+    return p ? *reinterpret_cast<int32_t*>(p) : def;
+}
+
 // 取当前玩家对象（Main.player[Main.myPlayer]）
 il2::Object* me() {
-    if (!gReady || !f_myPlayer || !f_playerArr) return nullptr;
-    int32_t idx = 0;
-    il2::field_static_get_value(f_myPlayer, &idx);
+    if (!gReady) return nullptr;
+    if ((!f_myPlayer && !f_myPlayer_get) || (!f_playerArr && !f_playerArr_get)) return nullptr;
+
+    int32_t idx = -1;
+    if (f_myPlayer) il2::field_static_get_value(f_myPlayer, &idx);
+    else idx = static_getter_int(f_myPlayer_get, -1);
+
     void* arr = nullptr;
-    il2::field_static_get_value(f_playerArr, &arr);
+    if (f_playerArr) il2::field_static_get_value(f_playerArr, &arr);
+    else arr = call_static_getter(f_playerArr_get);
     if (!arr || idx < 0 || idx > 255) return nullptr;
     // Il2CppArray: obj(16) + bounds(8) + length(4+4) -> 数据从 32 开始，元素为引用
     return *reinterpret_cast<il2::Object**>(reinterpret_cast<char*>(arr) + 32 + idx * 8);
@@ -220,6 +275,61 @@ bool init() {
     f_spawnX = F(gMain, "spawnTileX");
     f_spawnY = F(gMain, "spawnTileY");
 
+    // 字段找不到的，退回按**属性**取 getter（这一版这几个都是属性）
+    {
+        auto P = [&](il2::Class* k, const char* n) -> il2::Method* {
+            if (!k) return nullptr;
+            il2::Property* pr = il2::class_get_property_from_name(k, n);
+            return pr ? il2::property_get_get_method(pr) : nullptr;
+        };
+        if (!f_myPlayer) f_myPlayer_get = P(gMain, "myPlayer");
+        if (!f_playerArr) f_playerArr_get = P(gMain, "player");
+        if (!f_gameMenu) f_gameMenu_get = P(gMain, "gameMenu");
+        if (!f_spawnX) f_spawnX_get = P(gMain, "spawnTileX");
+        if (!f_spawnY) f_spawnY_get = P(gMain, "spawnTileY");
+        if (!f_sandStorm) {
+            if (il2::Property* pr = il2::class_get_property_from_name(gMain, "sandStorm")) {
+                f_sand_get = il2::property_get_get_method(pr);
+                f_sand_set = il2::property_get_set_method(pr);
+            }
+        }
+        mm::logf("修改器：属性回退 -> myPlayer %s / player %s / gameMenu %s / spawn %s%s",
+                 f_myPlayer_get ? "有" : "无", f_playerArr_get ? "有" : "无",
+                 f_gameMenu_get ? "有" : "无",
+                 f_spawnX_get ? "有" : "无", f_spawnY_get ? "有" : "无");
+        mm::logf("修改器：沙尘暴属性 -> getter %s / setter %s",
+                 f_sand_get ? "有" : "无", f_sand_set ? "有" : "无");
+    }
+
+    // ---- 诊断：player 还是没找到，就把 Main 里带 layer 的名字全列出来 -------------
+    // （player / Player 都含 "layer"，一次列全，比继续猜候选名快）
+    if (!f_playerArr && !f_playerArr_get) {
+        std::string fhits, phits;
+        int fn = 0, pn = 0;
+        void* it = nullptr;
+        while (il2::Field* fd = il2::class_get_fields(gMain, &it)) {
+            ++fn;
+            const char* n = il2::field_get_name(fd);
+            if (n && strstr(n, "layer")) {
+                if (!fhits.empty()) fhits += ", ";
+                fhits += n;
+                fhits += "=";
+                fhits += il2::type_kind_name(field_kind(fd));
+            }
+        }
+        it = nullptr;
+        while (il2::Property* pr = il2::class_get_properties(gMain, &it)) {
+            ++pn;
+            const char* n = il2::property_get_name(pr);
+            if (n && strstr(n, "layer")) {
+                if (!phits.empty()) phits += ", ";
+                phits += n;
+            }
+        }
+        mm::logf("修改器：Main 字段 %d 个，含 layer 的：%s", fn, fhits.empty() ? "（无）" : fhits.c_str());
+        mm::logf("修改器：Main 属性 %d 个，含 layer 的：%s", pn, phits.empty() ? "（无）" : phits.c_str());
+    }
+
     // ---- 实体（NPC）----
     // 字段名跟安卓版那套按名解析用的是同一批（NPC.active/life/type/friendly/whoAmI）
     gNpc = il2::class_from_name(img, "Terraria", "NPC");
@@ -238,35 +348,36 @@ bool init() {
 
     // 名字和指针成对存一份：没解析到的直接把**名字**打进日志，
     // 真机跑一次就知道哪个字段跟这个游戏版本对不上（不用靠猜）。
-    struct FieldRef { const char* name; il2::Field* f; };
+    // 顺带记上"属性 getter"：有几个名字这版是属性，只有 getter 不算缺
+    struct FieldRef { const char* name; il2::Field* f; il2::Method* g; };
     const FieldRef all[] = {
-        {"statLife", f_statLife},       {"statLifeMax2", f_statLifeMax2},
-        {"statMana", f_statMana},       {"statManaMax2", f_statManaMax2},
-        {"immune", f_immune},           {"noFallDmg", f_noFallDmg},
-        {"ignoreWater", f_ignoreWater}, {"fireWalk", f_fireWalk},
-        {"lavaImmune", f_lavaImmune},   {"invis", f_invis},
-        {"moveSpeed", f_moveSpeed},     {"wingTime", f_wingTime},
-        {"wingTimeMax", f_wingTimeMax}, {"statDefense", f_statDefense},
-        {"endurance", f_endurance},     {"myPlayer", f_myPlayer},
-        {"Main.player", f_playerArr},   {"dayRate", f_dayRate},
-        {"time", f_time},               {"bloodMoon", f_bloodMoon},
-        {"eclipse", f_eclipse},         {"rain", f_rain},
-        {"sandStorm", f_sandStorm},     {"windSpeedCurrent", f_windSpeed},
-        {"hardMode", f_hardMode},       {"gameMenu", f_gameMenu},
-        {"Player.position", f_playerPos},
-        {"noKnockback", f_noKnockback}, {"lifeRegen", f_lifeRegen},
-        {"dayTime", f_dayTime},
-        {"spawnTileX", f_spawnX},       {"spawnTileY", f_spawnY},
-        {"Main.npc", f_npcArr},         {"npc.active", f_npcActive},
-        {"npc.life", f_npcLife},        {"npc.type", f_npcType},
-        {"npc.friendly", f_npcFriendly}, {"npc.whoAmI", f_npcWhoAmI},
-        {"npc.position", f_npcPos},
+        {"statLife", f_statLife, nullptr},       {"statLifeMax2", f_statLifeMax2, nullptr},
+        {"statMana", f_statMana, nullptr},       {"statManaMax2", f_statManaMax2, nullptr},
+        {"immune", f_immune, nullptr},           {"noFallDmg", f_noFallDmg, nullptr},
+        {"ignoreWater", f_ignoreWater, nullptr}, {"fireWalk", f_fireWalk, nullptr},
+        {"lavaImmune", f_lavaImmune, nullptr},   {"invis", f_invis, nullptr},
+        {"moveSpeed", f_moveSpeed, nullptr},     {"wingTime", f_wingTime, nullptr},
+        {"wingTimeMax", f_wingTimeMax, nullptr}, {"statDefense", f_statDefense, nullptr},
+        {"endurance", f_endurance, nullptr},     {"myPlayer", f_myPlayer, f_myPlayer_get},
+        {"Main.player", f_playerArr, f_playerArr_get},   {"dayRate", f_dayRate, nullptr},
+        {"time", f_time, nullptr},               {"bloodMoon", f_bloodMoon, nullptr},
+        {"eclipse", f_eclipse, nullptr},         {"rain", f_rain, nullptr},
+        {"sandStorm", f_sandStorm, nullptr},     {"windSpeedCurrent", f_windSpeed, nullptr},
+        {"hardMode", f_hardMode, nullptr},       {"gameMenu", f_gameMenu, f_gameMenu_get},
+        {"Player.position", f_playerPos, nullptr},
+        {"noKnockback", f_noKnockback, nullptr}, {"lifeRegen", f_lifeRegen, nullptr},
+        {"dayTime", f_dayTime, nullptr},
+        {"spawnTileX", f_spawnX, f_spawnX_get},       {"spawnTileY", f_spawnY, f_spawnY_get},
+        {"Main.npc", f_npcArr, nullptr},         {"npc.active", f_npcActive, nullptr},
+        {"npc.life", f_npcLife, nullptr},        {"npc.type", f_npcType, nullptr},
+        {"npc.friendly", f_npcFriendly, nullptr}, {"npc.whoAmI", f_npcWhoAmI, nullptr},
+        {"npc.position", f_npcPos, nullptr},
     };
     int ok = 0, total = 0;
     std::string miss;
     for (const auto& e : all) {
         ++total;
-        if (e.f) { ++ok; continue; }
+        if (e.f || e.g) { ++ok; continue; }
         if (!miss.empty()) miss += ", ";
         miss += e.name;
     }
@@ -292,11 +403,11 @@ bool init() {
             {"wingTime", f_wingTime, il2::TK_R4},
             {"statDefense", f_statDefense, il2::TK_I4},
             {"endurance", f_endurance, il2::TK_R4},
-            {"dayRate", f_dayRate, il2::TK_R4},
+            {"dayRate", f_dayRate, il2::TK_I4},      // 真机日志报：实际是 i32
             {"bloodMoon", f_bloodMoon, il2::TK_BOOL},
             {"eclipse", f_eclipse, il2::TK_BOOL},
-            {"rain", f_rain, il2::TK_R4},
-            {"sandStorm", f_sandStorm, il2::TK_R4},
+            {"rain", f_rain, il2::TK_BOOL},          // 真机日志报：实际是 bool（raining）
+            {"sandStorm", f_sandStorm, il2::TK_BOOL},
             {"windSpeedCurrent", f_windSpeed, il2::TK_R4},
             {"hardMode", f_hardMode, il2::TK_BOOL},
             {"noKnockback", f_noKnockback, il2::TK_BOOL},
@@ -320,7 +431,10 @@ bool init() {
         if (bad.empty()) mm::logf("修改器：字段类型体检通过（%d 项）", checked);
         else mm::logf("修改器：字段类型与预期不符 -> %s", bad.c_str());
     }
-    if (!f_playerArr || !f_myPlayer) { log_missing("Main.player/myPlayer"); return false; }
+    if ((!f_playerArr && !f_playerArr_get) || (!f_myPlayer && !f_myPlayer_get)) {
+        log_missing("Main.player/myPlayer（字段和属性都没找到）");
+        return false;
+    }
 
     gReady = true;
     return true;
@@ -342,10 +456,18 @@ bool in_world() {
     // 判断不了就别拦：这时候页面自己会显示"修改器不可用（IL2CPP 未就绪）"，
     // 比笼统地说"要进地图"更准确。
     if (!gReady && !init()) return true;
-    if (!f_gameMenu) return true;    // 字段没解析到就别拦，宁可显示出来
-    uint8_t v = 0;
-    il2::field_static_get_value(f_gameMenu, &v);
-    return v == 0;                   // gameMenu = true 表示还在主菜单
+    // gameMenu 这一版是**属性**，字段找不到就走 getter
+    bool menu = true;
+    if (f_gameMenu) {
+        uint8_t v = 0;
+        il2::field_static_get_value(f_gameMenu, &v);
+        menu = (v != 0);
+    } else if (f_gameMenu_get) {
+        menu = (static_getter_int(f_gameMenu_get, 1) != 0);
+    } else {
+        return true;                 // 都拿不到就别拦，宁可显示出来
+    }
+    return !menu;                    // gameMenu = true 表示还在主菜单
 }
 
 void tick() {
@@ -398,7 +520,10 @@ void tick() {
     if (c_bloodMoon) write_auto(nullptr, f_bloodMoon, true, kFlag);
     if (c_eclipse) write_auto(nullptr, f_eclipse, true, kFlag);
     if (c_rain) write_auto(nullptr, f_rain, true, kFlag);
-    if (c_sand) write_auto(nullptr, f_sandStorm, true, kFlag);
+    if (c_sand) {
+        write_auto(nullptr, f_sandStorm, true, kFlag);      // 是字段的话
+        write_static_prop(f_sand_set, kFlag);               // 是属性的话
+    }
     if (c_wind) write_auto(nullptr, f_windSpeed, true, 60.0f);
     if (c_day) write_auto(nullptr, f_dayRate, true, 10.0f);      // 时间快进到白天
     if (c_night) write_auto(nullptr, f_dayRate, true, -10.0f);
@@ -639,13 +764,15 @@ void player_stats(int* life, int* life_max, int* mana, int* mana_max, int* defen
 bool teleport_to_spawn() {
     if (!gReady && !init()) return false;
     il2::Object* p = me();
-    if (!p || !f_spawnX || !f_spawnY || !f_playerPos) {
+    if (!p || (!f_spawnX && !f_spawnX_get) || (!f_spawnY && !f_spawnY_get) || !f_playerPos) {
         mm::logf("修改器：传送失败（玩家或出生点字段没解析到）");
         return false;
     }
     int32_t tx = 0, ty = 0;
-    il2::field_static_get_value(f_spawnX, &tx);
-    il2::field_static_get_value(f_spawnY, &ty);
+    if (f_spawnX) il2::field_static_get_value(f_spawnX, &tx);
+    else tx = static_getter_int(f_spawnX_get, 0);
+    if (f_spawnY) il2::field_static_get_value(f_spawnY, &ty);
+    else ty = static_getter_int(f_spawnY_get, 0);
     // 方块坐标 -> 世界坐标：每格 16 像素
     struct V2 { float x, y; } pos{(float)(tx * 16), (float)(ty * 16)};
     il2::field_set_value(p, f_playerPos, &pos);
