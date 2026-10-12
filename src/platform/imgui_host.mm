@@ -52,6 +52,7 @@ constexpr double kIdleInterval = 0.20;   // 空闲时最多 5 帧/秒
 // 只要没变化就没必要每帧清屏重画（全屏 clear + 绘制在真机上很贵）。
 // 任何触摸、以及刚启动时置真；画完一帧且手离开了就清掉。
 std::atomic<bool> g_dirty{true};
+bool g_last_in_world = false;    // 上一帧"在不在世界地图里"，用来抓进出地图的跳变
 
 
 CAMetalLayer* g_layer = nil;
@@ -304,6 +305,21 @@ void render_overlay() {
     @autoreleasepool {
         // 悬浮球和整个控制台**进游戏就能用**（日志/脚本这些跟地图无关）。
         // 「修改器」那几页才需要进地图 —— 那个判断在 menu.mm 里按页做。
+
+        // ---- 进地图自动弹出修改器 ------------------------------------------
+        // 安卓那套是进世界就把面板弹出来。这里在「不在世界 -> 在世界」的
+        // 跳变那一下自动展开菜单（只跳变时触发，玩家手动收起后不会反复弹）。
+        {
+            const bool in_world = cheat::in_world();
+            if (in_world && !g_last_in_world) {
+                ui::set_visible(true);
+                g_dirty.store(true);
+                g_last_present = 0;
+                mm::logf("检测到已进入地图，自动展开菜单");
+            }
+            g_last_in_world = in_world;
+        }
+
         // 防录屏（设置 → 界面 里可以关）：
         // 检测到屏幕录制/投屏时，直接把自己的层藏起来。
         if (ui::hide_on_capture() && [UIScreen mainScreen].isCaptured) {
@@ -403,6 +419,26 @@ void render_overlay() {
 // ---------------------------------------------------------------------------
 void (*g_orig_send_event)(id, SEL, UIEvent*) = nullptr;
 
+// 被我们拦下的触摸名单（按 UITouch 指针记，不持有）
+constexpr int kMaxSwallowed = 12;
+__unsafe_unretained UITouch* g_swallowed[kMaxSwallowed] = {nullptr};
+
+void swallow_mark(UITouch* t) {
+    for (int i = 0; i < kMaxSwallowed; ++i) {
+        if (g_swallowed[i] == t) return;
+        if (g_swallowed[i] == nullptr) { g_swallowed[i] = t; return; }
+    }
+}
+bool swallow_is_marked(UITouch* t) {
+    for (int i = 0; i < kMaxSwallowed; ++i)
+        if (g_swallowed[i] == t) return true;
+    return false;
+}
+void swallow_unmark(UITouch* t) {
+    for (int i = 0; i < kMaxSwallowed; ++i)
+        if (g_swallowed[i] == t) { g_swallowed[i] = nullptr; return; }
+}
+
 void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
     BOOL swallow = NO;
     // 一有触摸就立刻恢复满帧渲染（否则拖球会卡）
@@ -415,8 +451,10 @@ void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
     if (event) {
         for (UITouch* t in [event allTouches]) {
             CGPoint p = [t locationInView:self];
-            g_touch_x.store((float)(p.x * g_scale));
-            g_touch_y.store((float)(p.y * g_scale));
+            const float x = (float)(p.x * g_scale);
+            const float y = (float)(p.y * g_scale);
+            g_touch_x.store(x);
+            g_touch_y.store(y);
             switch (t.phase) {
                 case UITouchPhaseBegan:
                 case UITouchPhaseMoved:
@@ -427,9 +465,31 @@ void mm_send_event(UIWindow* self, SEL _cmd, UIEvent* event) {
                     g_touching.store(false);
                     break;
             }
-            if (t.phase == UITouchPhaseBegan && ImGui::GetCurrentContext() &&
-                ImGui::GetIO().WantCaptureMouse) {
-                swallow = YES;
+
+            // ------------------------------------------------------------------
+            // 触摸拦截：**落在悬浮球/菜单面板范围内的一整套触摸，从头到尾都不给游戏**。
+            //
+            // 之前只在「按下 + ImGui 想要鼠标」时吞，有两个漏洞：
+            //   · 按在面板里、抬手挪到面板外 —— 抬手事件漏给游戏（等于点了一下屏幕）
+            //   · ImGui 还没判定 WantCaptureMouse 的那一帧按下，也漏
+            // 现在按 UITouch 记一份名单：按下时判定一次，之后 Moved/Ended 都跟着吞。
+            // ------------------------------------------------------------------
+            if (t.phase == UITouchPhaseBegan) {
+                float bx = 0, by = 0, bw = 0, bh = 0;
+                ui::bounds(&bx, &by, &bw, &bh);
+                // bounds 在收起时返回悬浮球矩形，展开时返回面板矩形 —— 正好就是要拦的范围
+                const bool inside = (x >= bx && x <= bx + bw && y >= by && y <= by + bh);
+                const bool imgui_wants = ImGui::GetCurrentContext() &&
+                                         ImGui::GetIO().WantCaptureMouse;
+                if (inside || imgui_wants) {
+                    swallow_mark(t);
+                    swallow = YES;
+                }
+            } else {
+                if (swallow_is_marked(t)) swallow = YES;
+                if (t.phase == UITouchPhaseEnded || t.phase == UITouchPhaseCancelled) {
+                    swallow_unmark(t);
+                }
             }
         }
     }

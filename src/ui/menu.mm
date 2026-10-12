@@ -370,6 +370,7 @@ void draw() {
         return;
     }
 
+    theme::glass_sheen();     // 玻璃高光，画在所有内容之前
     draw_header();
     ImGui::Separator();
 
@@ -378,13 +379,19 @@ void draw() {
     const float mid_h = ImGui::GetContentRegionAvail().y - footer_h;
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::sidebar_bg());
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, ImGui::GetFontSize() * 0.60f);
     // 侧栏宽度跟着字号走（真机字号是预览器的两倍多）
     const float nav_w = ImGui::GetFontSize() * 5.6f;
     ImGui::BeginChild("##nav", ImVec2(nav_w, mid_h), ImGuiChildFlags_Border);
     {
+        // 没进地图时只显示「日志 / 脚本 / 设置」——
+        // 那几页是 mod 加载状态 + 控制台 + 设置，跟地图无关；
+        // 修改器那几页（自身/世界/实体/物品/多选/网络）进了地图才出现。
+        const bool in_world = cheat::in_world();
+        if (!in_world && g_page <= 5) g_page = 6;      // 当前页被藏起来了 -> 退回日志
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
         for (int i = 0; i < kNavCount; ++i) {
+            if (!in_world && i <= 5) continue;
             if (theme::nav_item(kNav[i], g_page == i)) g_page = i;
         }
         ImGui::PopStyleVar();

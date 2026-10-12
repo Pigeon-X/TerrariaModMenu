@@ -19,18 +19,42 @@ namespace ui {
 namespace theme {
 
 // ---- 颜色 ------------------------------------------------------------------
-inline ImVec4 panel_bg()    { return ImVec4(0.043f, 0.035f, 0.102f, 0.95f); }
-inline ImVec4 panel_edge()  { return ImVec4(0.42f,  0.32f,  0.95f,  0.55f); }
-inline ImVec4 header_bg()   { return ImVec4(0.09f,  0.07f,  0.21f,  0.98f); }
-inline ImVec4 sidebar_bg()  { return ImVec4(0.055f, 0.045f, 0.125f, 0.95f); }
-inline ImVec4 card_bg()     { return ImVec4(0.075f, 0.066f, 0.15f,  0.90f); }
-inline ImVec4 card_edge()   { return ImVec4(0.30f,  0.26f,  0.55f,  0.55f); }
-inline ImVec4 accent()      { return ImVec4(0.55f,  0.42f,  1.00f,  1.00f); }
-inline ImVec4 accent_dim()  { return ImVec4(0.35f,  0.27f,  0.72f,  1.00f); }
+// 「液态玻璃」的取巧做法：我们的叠加层是透明的、游戏在下面，
+// 真背景模糊拿不到下层画面，所以靠**高透明度 + 顶部高光 + 亮边 + 大圆角**
+// 做出那种通透的玻璃感（游戏画面从面板里透出来就是玻璃）。
+inline ImVec4 panel_bg()    { return ImVec4(0.10f,  0.11f,  0.18f,  0.72f); }
+inline ImVec4 panel_edge()  { return ImVec4(1.00f,  1.00f,  1.00f,  0.22f); }
+inline ImVec4 header_bg()   { return ImVec4(0.17f,  0.18f,  0.28f,  0.55f); }
+inline ImVec4 sidebar_bg()  { return ImVec4(0.13f,  0.14f,  0.22f,  0.42f); }
+inline ImVec4 card_bg()     { return ImVec4(0.18f,  0.19f,  0.30f,  0.38f); }
+inline ImVec4 card_edge()   { return ImVec4(1.00f,  1.00f,  1.00f,  0.14f); }
+inline ImVec4 accent()      { return ImVec4(0.62f,  0.50f,  1.00f,  1.00f); }
+inline ImVec4 accent_dim()  { return ImVec4(0.42f,  0.32f,  0.85f,  1.00f); }
 inline ImVec4 text()        { return ImVec4(0.88f,  0.88f,  0.96f,  1.00f); }
 inline ImVec4 text_dim()    { return ImVec4(0.55f,  0.55f,  0.70f,  1.00f); }
 inline ImVec4 ok_green()    { return ImVec4(0.35f,  0.85f,  0.55f,  1.00f); }
 inline ImVec4 danger()      { return ImVec4(0.75f,  0.22f,  0.28f,  1.00f); }
+
+// 玻璃顶部那一道高光。要在窗口内容之前调用（画在底下）。
+inline void glass_sheen() {
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImVec2 p = ImGui::GetWindowPos();
+    const ImVec2 s = ImGui::GetWindowSize();
+    const float r = ImGui::GetStyle().WindowRounding;
+    if (s.x <= r * 2.0f || s.y <= 4.0f) return;
+    // 上缘一层很淡的白 -> 透明，模拟玻璃受光
+    dl->AddRectFilledMultiColor(
+        ImVec2(p.x + r, p.y),
+        ImVec2(p.x + s.x - r, p.y + s.y * 0.20f),
+        IM_COL32(255, 255, 255, 26), IM_COL32(255, 255, 255, 26),
+        IM_COL32(255, 255, 255, 0), IM_COL32(255, 255, 255, 0));
+    // 左上角再点一小块，做出斜向的反射
+    dl->AddRectFilledMultiColor(
+        ImVec2(p.x + r * 0.5f, p.y + r * 0.5f),
+        ImVec2(p.x + s.x * 0.45f, p.y + s.y * 0.06f),
+        IM_COL32(255, 255, 255, 16), IM_COL32(255, 255, 255, 0),
+        IM_COL32(255, 255, 255, 0), IM_COL32(255, 255, 255, 16));
+}
 
 // ---- 文字 ------------------------------------------------------------------
 inline void text_dim(const char* fmt, ...) {
@@ -147,7 +171,7 @@ inline bool begin_card(const char* id, const char* title, int rows = 0) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, card_bg());
     ImGui::PushStyleColor(ImGuiCol_Border, card_edge());
     const float fs = ImGui::GetFontSize();
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, fs * 0.36f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, fs * 0.60f);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(fs * 0.50f, fs * 0.36f));
     ImGui::BeginChild(id, ImVec2(0, h), ImGuiChildFlags_Border);
@@ -220,7 +244,7 @@ inline void push_all() {
     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.07f, 0.06f, 0.14f, 0.98f)); // 20
     ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, accent_dim());                 // 21
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, fs * 0.45f);                // 1
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, fs * 0.80f);                // 1
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);                    // 2
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, fs * 0.30f);                 // 3
     ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, fs * 0.30f);                  // 4
