@@ -5,6 +5,10 @@
 #include <cstring>
 #include <string>
 
+#include <atomic>
+#include <thread>
+#include <unistd.h>
+
 #include "imgui.h"
 
 #include "../il2cpp_api.hpp"
@@ -511,8 +515,58 @@ bool in_world() {
     return !menu;                    // gameMenu = true 表示还在主菜单
 }
 
+// ---------------------------------------------------------------------------
+// 「会被游戏每帧重算」的字段要特殊对待。
+//
+// statDefense 就是典型：Terraria 的 UpdateEquips 每帧把它清零再按装备/增益累加，
+// 我们写一次马上被覆盖（真机实测：生命能改、防御改不动，就是这个原因）。
+// 我们的写入跑在自己的渲染线程上，和游戏循环不同步，正常频率下永远抢不到。
+//
+// 解法：这类字段单开一个后台线程，**每 1ms 写一次**，密度远高于游戏帧率，
+// 游戏画 HUD 之前那次写基本上就是我们的值。
+// ---------------------------------------------------------------------------
+namespace {
+
+std::atomic<bool> g_fast_write{false};
+std::atomic<bool> g_fast_started{false};
+
+void fast_writer_loop() {
+    // 挂到 IL2CPP 的线程上再碰托管内存，稳妥
+    if (il2::Domain* d = il2::domain_get()) il2::thread_attach(d);
+    while (true) {
+        if (!g_fast_write.load()) {
+            usleep(8000);
+            continue;
+        }
+        if (il2::Object* p = me()) {
+            if (c_defense) {
+                write_auto(p, f_statDefense, false, 9999);
+                write_auto(p, f_endurance, false, 1.0f);
+            }
+        }
+        usleep(1000);
+    }
+}
+
+void ensure_fast_writer() {
+    bool expected = false;
+    if (g_fast_started.compare_exchange_strong(expected, true)) {
+        std::thread(fast_writer_loop).detach();
+        mm::logf("修改器：高频写入线程已启动（给会被游戏重算的字段用）");
+    }
+}
+
+}  // namespace
+
 void tick() {
     if (!gReady && !init()) return;
+
+    // ⚠️ 这个开关必须在下面 active() 早退**之前**更新。
+    // 否则"防御拉满"是最后一个被关掉的开关时：active() 已经变 false，
+    // 函数直接早退，标记留在 true -> 后台线程会一直把防御压在 9999。
+    if (c_defense) ensure_fast_writer();
+    g_fast_write.store(c_defense);
+
     // C 档的配置写入暂时停用（二分排查闪退）
     if (!active()) return;
     il2::Object* p = me();
@@ -741,6 +795,8 @@ int spawn_npc(int type, int count) {
 // ---------------------------------------------------------------------------
 // 动作类（点一下就生效）
 // ---------------------------------------------------------------------------
+
+
 void heal_full() {
     if (!gReady && !init()) return;
     il2::Object* p = me();
