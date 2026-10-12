@@ -6,6 +6,7 @@
 #include <string>
 
 #include <atomic>
+#include <chrono>
 #include <thread>
 #include <unistd.h>
 
@@ -529,16 +530,17 @@ namespace {
 
 std::atomic<bool> g_fast_write{false};
 std::atomic<bool> g_fast_started{false};
+// 由主线程每帧填：当前玩家对象。高频线程只读这个指针直接写内存，
+// **不调任何托管方法**（在非主线程上调 Main.myPlayer 这种属性 getter 会失败）。
+std::atomic<il2::Object*> g_cached_player{nullptr};
 
 void fast_writer_loop() {
-    // 挂到 IL2CPP 的线程上再碰托管内存，稳妥
-    if (il2::Domain* d = il2::domain_get()) il2::thread_attach(d);
     while (true) {
         if (!g_fast_write.load()) {
             usleep(8000);
             continue;
         }
-        if (il2::Object* p = me()) {
+        if (il2::Object* p = g_cached_player.load()) {
             if (c_defense) {
                 write_auto(p, f_statDefense, false, 9999);
                 write_auto(p, f_endurance, false, 1.0f);
@@ -569,8 +571,32 @@ void ensure_fast_writer() {
 
 }  // namespace
 
+namespace {
+
+double now_seconds() {
+    return std::chrono::duration<double>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+// 设完时间 2 秒后回读一次用的
+double g_time_check_at = 0;
+double g_time_target = 0;
+
+}  // namespace
+
 void tick() {
     if (!gReady && !init()) return;
+
+    // ---- 设完时间 2 秒后回读，看游戏有没有把时间算回去 --------------------
+    if (g_time_check_at > 0 && now_seconds() >= g_time_check_at) {
+        g_time_check_at = 0;
+        double t2 = 0;
+        if (f_time) il2::field_static_get_value(f_time, &t2);
+        uint8_t d2 = 0;
+        if (f_dayTime) il2::field_static_get_value(f_dayTime, &d2);
+        mm::logf("修改器：设完时间 2 秒后回读 time=%.0f dayTime=%d（目标 %.0f）",
+                 t2, (int)d2, g_time_target);
+    }
 
     // ⚠️ 这个开关必须在下面 active() 早退**之前**更新。
     // 否则"防御拉满"是最后一个被关掉的开关时：active() 已经变 false，
@@ -582,6 +608,7 @@ void tick() {
     if (!active()) return;
     il2::Object* p = me();
     if (!p) return;
+    g_cached_player.store(p);      // 给高频写入线程用
 
     // ⚠️ 一律用 write_auto：它按字段**声明的类型**写，
     //    不像以前那样按调用方给的宽度硬写（类型不符会把相邻内存写坏）。
@@ -683,26 +710,42 @@ void give_item(int id, int count) {
     int32_t elem = il2::class_array_element_size(gItem);
     if (elem <= 0) { mm::logf("修改器：Item 元素大小拿不到"); return; }
 
-    // 找一个空槽
+    // ⚠️ Terraria 的 Item 是**引用类型**，所以 Player.inventory 是 Item[]，
+    //    数组里存的是**对象指针**（8 字节），不是内联的结构体。
+    //    以前按结构体偏移算地址、再把它当成 Item 对象调 SetDefaults ——
+    //    等于拿"指针所在的槽"当对象用，一点就崩（真机实测）。
+    //    正确姿势：读出槽里的指针；槽里是空的就 new 一个 Item 再存回去。
     il2::Field* fType = il2::class_get_field_from_name(gItem, "type");
-    int32_t typeOffset = fType ? (int32_t)il2::field_get_offset(fType) : 0;
-    int slot = -1;
+    il2::Object* target = nullptr;
+    int slot = 0;
     for (int i = 0; i < 59; ++i) {
-        char* it = reinterpret_cast<char*>(arr) + 32 + i * elem;
-        int32_t t = *reinterpret_cast<int32_t*>(it + typeOffset);
-        if (t == 0) { slot = i; break; }
+        char* slotp = reinterpret_cast<char*>(arr) + 32 + i * elem;
+        il2::Object* it = *reinterpret_cast<il2::Object**>(slotp);
+        if (!it) {
+            it = il2::object_new(gItem);        // 空槽：补一个 Item 实例
+            if (!it) continue;
+            *reinterpret_cast<il2::Object**>(slotp) = it;
+        }
+        int32_t t = 0;
+        if (fType) il2::field_get_value(it, fType, &t);
+        if (t == 0) { target = it; slot = i; break; }
     }
-    if (slot < 0) slot = 0;
+    if (!target) {          // 背包满了就覆盖第一格
+        char* slotp0 = reinterpret_cast<char*>(arr) + 32;
+        target = *reinterpret_cast<il2::Object**>(slotp0);
+        if (!target) { mm::logf("修改器：背包第一格是空的且建不出 Item"); return; }
+    }
 
-    char* target = reinterpret_cast<char*>(arr) + 32 + slot * elem;
     int32_t a0 = id, a1 = 0;
     void* args[2] = {&a0, &a1};
     void* exc = nullptr;
     il2::runtime_invoke(setDefaults, target, args, &exc);
     if (exc) { mm::logf("修改器：SetDefaults 抛异常"); return; }
 
-    il2::Field* fStack = il2::class_get_field_from_name(gItem, "stack");
-    if (fStack) *reinterpret_cast<int32_t*>(target + il2::field_get_offset(fStack)) = count;
+    // 数量：按字段真实类型写（以前直接按 4 字节写偏移，类型不对就写坏内存）
+    if (il2::Field* fStack = il2::class_get_field_from_name(gItem, "stack")) {
+        write_auto(target, fStack, false, count);
+    }
     mm::logf("修改器：已放入物品 id=%d x%d（槽位 %d）", id, count, slot);
 }
 
@@ -879,6 +922,7 @@ void heal_full() {
 
 // Terraria 的时间：白天 time 0..54000 对应 4:30→19:30；
 // 夜里 time 0..32400 对应 19:30→次日 4:30。
+
 void set_world_time(int preset) {
     if (!gReady && !init()) return;
     if (!f_time) return;
@@ -894,6 +938,11 @@ void set_world_time(int preset) {
     write_auto(nullptr, f_dayTime, true, day ? 1.0 : 0.0);
     write_auto(nullptr, f_time, true, t);
     mm::logf("修改器：时间已设为 %s（time=%.0f）", day ? "白天" : "夜晚", t);
+
+    // 2 秒后回读一次：如果 time 被算回原值 -> 是"游戏把时间算回去了"，
+    // 得改成持续压着；如果 time 还停在这 -> 那是"天空不认这个值"，换个方向查。
+    g_time_check_at = now_seconds() + 2.0;
+    g_time_target = t;
 }
 
 double world_time_of_day() {
